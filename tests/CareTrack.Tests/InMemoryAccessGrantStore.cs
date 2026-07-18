@@ -1,0 +1,45 @@
+using CareTrack.Application;
+using CareTrack.Domain;
+
+namespace CareTrack.Tests;
+
+/// <summary>
+/// Simple in-memory grant store used to unit-test access scoping without a
+/// database. Mirrors the revoked-grant filtering the EF implementation applies.
+/// </summary>
+internal sealed class InMemoryAccessGrantStore : IAccessGrantStore
+{
+    private readonly List<AccessGrant> _grants = new();
+
+    public AccessGrant Add(Guid userId, Guid careProfileId, AccessRole role,
+        bool revoked = false)
+    {
+        var grant = new AccessGrant
+        {
+            UserId = userId,
+            CareProfileId = careProfileId,
+            Role = role,
+            RevokedAt = revoked ? DateTimeOffset.UtcNow : null
+        };
+        _grants.Add(grant);
+        return grant;
+    }
+
+    public Task<AccessGrant?> FindActiveGrantAsync(
+        Guid userId, Guid careProfileId, CancellationToken ct = default)
+        => Task.FromResult(_grants.SingleOrDefault(
+            g => g.UserId == userId
+                 && g.CareProfileId == careProfileId
+                 && g.RevokedAt is null));
+
+    public Task<IReadOnlyList<Guid>> ListAccessibleProfileIdsAsync(
+        Guid userId, CancellationToken ct = default)
+    {
+        IReadOnlyList<Guid> ids = _grants
+            .Where(g => g.UserId == userId && g.RevokedAt is null)
+            .Select(g => g.CareProfileId)
+            .Distinct()
+            .ToList();
+        return Task.FromResult(ids);
+    }
+}
