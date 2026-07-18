@@ -10,6 +10,18 @@ public sealed class EfCareDataRepository : ICareDataRepository
 
     public EfCareDataRepository(CareTrackDbContext db) => _db = db;
 
+    // ---- Care profiles ----
+
+    public async Task CreateCareProfileAsync(
+        CareProfile profile, AccessGrant ownerGrant, CancellationToken ct = default)
+    {
+        // One SaveChanges = one transaction: the profile and its owning grant
+        // are created atomically.
+        _db.CareProfiles.Add(profile);
+        _db.AccessGrants.Add(ownerGrant);
+        await _db.SaveChangesAsync(ct);
+    }
+
     // ---- Providers ----
 
     public async Task<Provider> AddProviderAsync(Provider provider, CancellationToken ct = default)
@@ -115,6 +127,51 @@ public sealed class EfCareDataRepository : ICareDataRepository
                         && ids.Contains(n.ProviderId!.Value))
             .OrderByDescending(n => n.CreatedAt)
             .ToListAsync(ct);
+    }
+
+    // ---- Agencies ----
+
+    public async Task<Agency> AddAgencyAsync(Agency agency, CancellationToken ct = default)
+    {
+        _db.Agencies.Add(agency);
+        await _db.SaveChangesAsync(ct);
+        return agency;
+    }
+
+    public Task<Agency?> GetAgencyAsync(Guid id, CancellationToken ct = default)
+        => _db.Agencies.AsNoTracking().SingleOrDefaultAsync(a => a.Id == id, ct);
+
+    public async Task<IReadOnlyList<Agency>> ListAgenciesAsync(
+        Guid careProfileId, string? kind, CancellationToken ct = default)
+        => await _db.Agencies.AsNoTracking()
+            .Where(a => a.CareProfileId == careProfileId
+                        && (string.IsNullOrEmpty(kind) || a.Kind == kind))
+            .OrderBy(a => a.Name)
+            .ToListAsync(ct);
+
+    // ---- School plans ----
+
+    public async Task<SchoolPlan> AddSchoolPlanAsync(SchoolPlan plan, CancellationToken ct = default)
+    {
+        _db.SchoolPlans.Add(plan);
+        await _db.SaveChangesAsync(ct);
+        return plan;
+    }
+
+    public Task<SchoolPlan?> GetSchoolPlanAsync(Guid id, CancellationToken ct = default)
+        => _db.SchoolPlans.SingleOrDefaultAsync(p => p.Id == id, ct);
+
+    public async Task<IReadOnlyList<SchoolPlan>> ListSchoolPlansAsync(
+        Guid careProfileId, CancellationToken ct = default)
+        => await _db.SchoolPlans.AsNoTracking()
+            .Where(p => p.CareProfileId == careProfileId)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync(ct);
+
+    public async Task UpdateSchoolPlanAsync(SchoolPlan plan, CancellationToken ct = default)
+    {
+        _db.SchoolPlans.Update(plan);
+        await _db.SaveChangesAsync(ct);
     }
 
     // ---- Documents ----

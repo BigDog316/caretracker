@@ -24,6 +24,8 @@ public class CareTrackDbContext
     public DbSet<Document> Documents => Set<Document>();
     public DbSet<DocumentTag> DocumentTags => Set<DocumentTag>();
     public DbSet<Card> Cards => Set<Card>();
+    public DbSet<Agency> Agencies => Set<Agency>();
+    public DbSet<SchoolPlan> SchoolPlans => Set<SchoolPlan>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Push.UserPushSubscription> PushSubscriptions => Set<Push.UserPushSubscription>();
 
@@ -189,6 +191,46 @@ public class CareTrackDbContext
 
             e.HasIndex(x => new { x.DocumentId, x.Value });
             e.HasIndex(x => x.Value);
+        });
+
+        b.Entity<Agency>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Kind).IsRequired().HasMaxLength(100);
+            e.Property(x => x.ContactName).HasMaxLength(200);
+            e.Property(x => x.Phone).HasMaxLength(50);
+            e.Property(x => x.Email).HasMaxLength(256);
+
+            e.HasOne(x => x.CareProfile)
+                .WithMany()
+                .HasForeignKey(x => x.CareProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            e.HasIndex(x => new { x.CareProfileId, x.Kind });
+        });
+
+        b.Entity<SchoolPlan>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.School).HasMaxLength(200);
+            e.Property(x => x.Title).HasMaxLength(300);
+
+            e.HasOne(x => x.CareProfile)
+                .WithMany()
+                .HasForeignKey(x => x.CareProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Deleting the underlying file shouldn't delete the plan record.
+            e.HasOne(x => x.Document)
+                .WithMany()
+                .HasForeignKey(x => x.DocumentId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            e.HasIndex(x => x.CareProfileId);
+            // The upcoming-reviews view filters on profile + review date.
+            e.HasIndex(x => new { x.CareProfileId, x.ReviewDueOn });
         });
 
         b.Entity<Card>(e =>

@@ -20,18 +20,46 @@ public sealed class CareProfilesController : ControllerBase
 {
     private readonly ICurrentUser _currentUser;
     private readonly CareProfileAccessService _access;
+    private readonly CareProfileService _profiles;
 
     public CareProfilesController(
-        ICurrentUser currentUser, CareProfileAccessService access)
+        ICurrentUser currentUser,
+        CareProfileAccessService access,
+        CareProfileService profiles)
     {
         _currentUser = currentUser;
         _access = access;
+        _profiles = profiles;
     }
 
     /// <summary>Lists only the profiles the caller has access to.</summary>
     [HttpGet]
     public async Task<IReadOnlyList<Guid>> ListMine(CancellationToken ct)
         => await _access.AccessibleProfileIdsAsync(_currentUser.RequireUserId(), ct);
+
+    /// <summary>
+    /// Creates a profile; the caller becomes its first Owner atomically.
+    /// </summary>
+    [HttpPost]
+    public async Task<IActionResult> Create(
+        [FromBody] CreateCareProfileRequest req, CancellationToken ct)
+    {
+        try
+        {
+            var profile = await _profiles.CreateAsync(
+                _currentUser.RequireUserId(), req, ct);
+            return Created($"api/care-profiles/{profile.Id}", new
+            {
+                id = profile.Id,
+                displayName = profile.DisplayName,
+                dateOfBirth = profile.DateOfBirth
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { error = ex.Message });
+        }
+    }
 
     /// <summary>Viewer+ required. Handler enforces before this body runs.</summary>
     [HttpGet("{careProfileId:guid}")]

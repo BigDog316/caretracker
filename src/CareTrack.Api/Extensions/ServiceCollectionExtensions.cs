@@ -26,6 +26,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<CareProfileAccessService>();
 
         // Feature services (Providers + Appointments + Notes slice).
+        services.AddScoped<CareProfileService>();
         services.AddScoped<ProviderService>();
         services.AddScoped<AppointmentService>();
         services.AddScoped<NoteService>();
@@ -34,6 +35,10 @@ public static class ServiceCollectionExtensions
         // Documents + Cards slice.
         services.AddScoped<DocumentService>();
         services.AddScoped<CardService>();
+
+        // School (IEP/504) + Agencies slice.
+        services.AddScoped<AgencyService>();
+        services.AddScoped<SchoolPlanService>();
 
         var storeOptions = new CareTrack.Infrastructure.Storage.LocalDiskDocumentStoreOptions();
         config.GetSection(CareTrack.Infrastructure.Storage.LocalDiskDocumentStoreOptions.SectionName)

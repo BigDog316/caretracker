@@ -12,6 +12,51 @@ internal sealed class InMemoryCareDataRepository : ICareDataRepository
     private readonly List<Provider> _providers = new();
     private readonly List<Appointment> _appointments = new();
     private readonly List<Note> _notes = new();
+    private readonly List<CareProfile> _profiles = new();
+    private readonly List<Agency> _agencies = new();
+    private readonly List<SchoolPlan> _schoolPlans = new();
+    private readonly InMemoryAccessGrantStore? _grants;
+
+    public InMemoryCareDataRepository(InMemoryAccessGrantStore? grants = null)
+        => _grants = grants;
+
+    public Task CreateCareProfileAsync(
+        CareProfile profile, AccessGrant ownerGrant, CancellationToken ct = default)
+    {
+        _profiles.Add(profile);
+        // Mirror the EF implementation's atomicity: the grant lands in the
+        // grant store (when wired) together with the profile.
+        _grants?.AddExisting(ownerGrant);
+        return Task.CompletedTask;
+    }
+
+    public Task<Agency> AddAgencyAsync(Agency a, CancellationToken ct = default)
+    { _agencies.Add(a); return Task.FromResult(a); }
+
+    public Task<Agency?> GetAgencyAsync(Guid id, CancellationToken ct = default)
+        => Task.FromResult(_agencies.SingleOrDefault(a => a.Id == id));
+
+    public Task<IReadOnlyList<Agency>> ListAgenciesAsync(
+        Guid profileId, string? kind, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<Agency>>(
+            _agencies.Where(a => a.CareProfileId == profileId
+                                 && (string.IsNullOrEmpty(kind) || a.Kind == kind))
+                .OrderBy(a => a.Name)
+                .ToList());
+
+    public Task<SchoolPlan> AddSchoolPlanAsync(SchoolPlan p, CancellationToken ct = default)
+    { _schoolPlans.Add(p); return Task.FromResult(p); }
+
+    public Task<SchoolPlan?> GetSchoolPlanAsync(Guid id, CancellationToken ct = default)
+        => Task.FromResult(_schoolPlans.SingleOrDefault(p => p.Id == id));
+
+    public Task<IReadOnlyList<SchoolPlan>> ListSchoolPlansAsync(
+        Guid profileId, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<SchoolPlan>>(
+            _schoolPlans.Where(p => p.CareProfileId == profileId).ToList());
+
+    public Task UpdateSchoolPlanAsync(SchoolPlan p, CancellationToken ct = default)
+        => Task.CompletedTask; // mutations happen on the tracked instance in tests
 
     public Task<Provider> AddProviderAsync(Provider p, CancellationToken ct = default)
     { _providers.Add(p); return Task.FromResult(p); }

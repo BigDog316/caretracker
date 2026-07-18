@@ -10,6 +10,14 @@ namespace CareTrack.Application;
 /// </summary>
 public interface ICareDataRepository
 {
+    // Care profiles
+    /// <summary>
+    /// Persists a new profile together with its creator's Owner grant in one
+    /// transaction, so a profile can never exist without an owning grant.
+    /// </summary>
+    Task CreateCareProfileAsync(
+        CareProfile profile, AccessGrant ownerGrant, CancellationToken ct = default);
+
     // Providers
     Task<Provider> AddProviderAsync(Provider provider, CancellationToken ct = default);
     Task<Provider?> GetProviderAsync(Guid id, CancellationToken ct = default);
@@ -47,6 +55,19 @@ public interface ICareDataRepository
     Task<IReadOnlyList<Document>> ListDocumentsAsync(
         Guid careProfileId, string? tag, CancellationToken ct = default);
     Task RemoveDocumentAsync(Document document, CancellationToken ct = default);
+
+    // Agencies
+    Task<Agency> AddAgencyAsync(Agency agency, CancellationToken ct = default);
+    Task<Agency?> GetAgencyAsync(Guid id, CancellationToken ct = default);
+    Task<IReadOnlyList<Agency>> ListAgenciesAsync(
+        Guid careProfileId, string? kind, CancellationToken ct = default);
+
+    // School plans
+    Task<SchoolPlan> AddSchoolPlanAsync(SchoolPlan plan, CancellationToken ct = default);
+    Task<SchoolPlan?> GetSchoolPlanAsync(Guid id, CancellationToken ct = default);
+    Task<IReadOnlyList<SchoolPlan>> ListSchoolPlansAsync(
+        Guid careProfileId, CancellationToken ct = default);
+    Task UpdateSchoolPlanAsync(SchoolPlan plan, CancellationToken ct = default);
 
     // Cards
     Task<Card> AddCardAsync(Card card, CancellationToken ct = default);

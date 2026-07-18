@@ -30,6 +30,18 @@ internal sealed class InMemoryAccessGrantStore : IAccessGrantStore
         return grant;
     }
 
+    /// <summary>
+    /// Adds a grant created elsewhere (e.g. by profile creation through the
+    /// in-memory repository).
+    /// </summary>
+    public void AddExisting(AccessGrant grant)
+    {
+        _grants.Add(grant);
+        if (!_contacts.ContainsKey(grant.UserId))
+            _contacts[grant.UserId] = (
+                $"{grant.UserId:N}@test.dev", "Test User");
+    }
+
     public Task<AccessGrant?> FindActiveGrantAsync(
         Guid userId, Guid careProfileId, CancellationToken ct = default)
         => Task.FromResult(_grants.SingleOrDefault(
