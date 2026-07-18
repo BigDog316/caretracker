@@ -21,6 +21,16 @@ public interface ICareDataRepository
     Task<IReadOnlyList<Appointment>> ListAppointmentsAsync(Guid careProfileId, CancellationToken ct = default);
     Task<IReadOnlyList<Appointment>> ListAwaitingFollowUpAsync(
         IEnumerable<Guid> careProfileIds, DateTimeOffset now, CancellationToken ct = default);
+
+    /// <summary>
+    /// System-wide sweep for the reminder delivery job: appointments awaiting
+    /// follow-up whose last prompt is older than <paramref name="repromptAfter"/>
+    /// (or never sent). Implementations should populate
+    /// <see cref="Appointment.CareProfile"/> so prompts can name the profile.
+    /// </summary>
+    Task<IReadOnlyList<Appointment>> ListDueForFollowUpReminderAsync(
+        DateTimeOffset now, TimeSpan repromptAfter, CancellationToken ct = default);
+
     Task UpdateAppointmentAsync(Appointment appt, CancellationToken ct = default);
 
     // Notes

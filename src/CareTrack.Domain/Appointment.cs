@@ -35,6 +35,13 @@ public class Appointment
     /// </summary>
     public DateTimeOffset? FollowUpCompletedAt { get; set; }
 
+    /// <summary>
+    /// When the delivery job last pushed a "How did it go?" prompt for this
+    /// appointment. Null until the first prompt goes out; used to throttle
+    /// re-prompts to the configured interval.
+    /// </summary>
+    public DateTimeOffset? FollowUpLastRemindedAt { get; set; }
+
     public DateTimeOffset CreatedAt { get; init; } = DateTimeOffset.UtcNow;
 
     public ICollection<Note> Notes { get; } = new List<Note>();

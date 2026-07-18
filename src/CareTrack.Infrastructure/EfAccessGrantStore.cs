@@ -32,4 +32,13 @@ public sealed class EfAccessGrantStore : IAccessGrantStore
             .Select(g => g.CareProfileId)
             .Distinct()
             .ToListAsync(ct);
+
+    public async Task<IReadOnlyList<ActiveGrantee>> ListActiveGranteesAsync(
+        Guid careProfileId, CancellationToken ct = default)
+        => await _db.AccessGrants
+            .AsNoTracking()
+            .Where(g => g.CareProfileId == careProfileId && g.RevokedAt == null)
+            .Select(g => new ActiveGrantee(
+                g.UserId, g.User!.Email, g.User.DisplayName, g.Role))
+            .ToListAsync(ct);
 }

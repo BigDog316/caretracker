@@ -23,4 +23,16 @@ public interface IAccessGrantStore
     /// </summary>
     Task<IReadOnlyList<Guid>> ListAccessibleProfileIdsAsync(
         Guid userId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Returns every user holding an active (non-revoked) grant on the profile,
+    /// with the contact fields delivery needs. Used by the reminder dispatcher
+    /// to address prompts; revoked grants must not be returned.
+    /// </summary>
+    Task<IReadOnlyList<ActiveGrantee>> ListActiveGranteesAsync(
+        Guid careProfileId, CancellationToken ct = default);
 }
+
+/// <summary>An active grant holder on a profile, flattened for delivery.</summary>
+public sealed record ActiveGrantee(
+    Guid UserId, string Email, string DisplayName, AccessRole Role);

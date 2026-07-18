@@ -46,6 +46,22 @@ public static class ServiceCollectionExtensions
         // once a user connects a calendar.
         services.AddScoped<ICalendarSync, NoOpCalendarSync>();
         services.AddSingleton<IClock, SystemClock>();
+
+        // "How did it go?" prompt delivery. LoggingReminderDelivery is the dev
+        // channel; swap for push/email in production.
+        services.Configure<FollowUpReminderOptions>(
+            config.GetSection(FollowUpReminderOptions.SectionName));
+        services.AddScoped<IReminderDelivery,
+            CareTrack.Infrastructure.Reminders.LoggingReminderDelivery>();
+        services.AddScoped(sp => new FollowUpReminderDispatcher(
+            sp.GetRequiredService<ICareDataRepository>(),
+            sp.GetRequiredService<IAccessGrantStore>(),
+            sp.GetRequiredService<IReminderDelivery>(),
+            sp.GetRequiredService<IClock>(),
+            sp.GetRequiredService<
+                Microsoft.Extensions.Options.IOptions<FollowUpReminderOptions>>()
+                .Value.RepromptInterval));
+        services.AddHostedService<CareTrack.Api.Reminders.FollowUpReminderHostedService>();
         return services;
     }
 

@@ -45,6 +45,20 @@ internal sealed class InMemoryCareDataRepository : ICareDataRepository
         return Task.FromResult(due);
     }
 
+    public Task<IReadOnlyList<Appointment>> ListDueForFollowUpReminderAsync(
+        DateTimeOffset now, TimeSpan repromptAfter, CancellationToken ct = default)
+    {
+        var repromptBefore = now - repromptAfter;
+        IReadOnlyList<Appointment> due = _appointments
+            .Where(a => a.FollowUpCompletedAt is null
+                        && a.EndsAt <= now
+                        && (a.FollowUpLastRemindedAt is null
+                            || a.FollowUpLastRemindedAt <= repromptBefore))
+            .OrderBy(a => a.EndsAt)
+            .ToList();
+        return Task.FromResult(due);
+    }
+
     public Task UpdateAppointmentAsync(Appointment a, CancellationToken ct = default)
         => Task.CompletedTask; // mutations happen on the tracked instance in tests
 
@@ -111,4 +125,5 @@ internal sealed class FixedClock : IClock
 {
     public FixedClock(DateTimeOffset now) => UtcNow = now;
     public DateTimeOffset UtcNow { get; set; }
+    public void Advance(TimeSpan by) => UtcNow += by;
 }

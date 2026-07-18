@@ -11,8 +11,10 @@ internal sealed class InMemoryAccessGrantStore : IAccessGrantStore
 {
     private readonly List<AccessGrant> _grants = new();
 
+    private readonly Dictionary<Guid, (string Email, string DisplayName)> _contacts = new();
+
     public AccessGrant Add(Guid userId, Guid careProfileId, AccessRole role,
-        bool revoked = false)
+        bool revoked = false, string? email = null, string? displayName = null)
     {
         var grant = new AccessGrant
         {
@@ -22,6 +24,9 @@ internal sealed class InMemoryAccessGrantStore : IAccessGrantStore
             RevokedAt = revoked ? DateTimeOffset.UtcNow : null
         };
         _grants.Add(grant);
+        _contacts[userId] = (
+            email ?? $"{userId:N}@test.dev",
+            displayName ?? $"User {userId:N}"[..12]);
         return grant;
     }
 
@@ -41,5 +46,20 @@ internal sealed class InMemoryAccessGrantStore : IAccessGrantStore
             .Distinct()
             .ToList();
         return Task.FromResult(ids);
+    }
+
+    public Task<IReadOnlyList<ActiveGrantee>> ListActiveGranteesAsync(
+        Guid careProfileId, CancellationToken ct = default)
+    {
+        IReadOnlyList<ActiveGrantee> grantees = _grants
+            .Where(g => g.CareProfileId == careProfileId && g.RevokedAt is null)
+            .Select(g =>
+            {
+                var contact = _contacts[g.UserId];
+                return new ActiveGrantee(
+                    g.UserId, contact.Email, contact.DisplayName, g.Role);
+            })
+            .ToList();
+        return Task.FromResult(grantees);
     }
 }

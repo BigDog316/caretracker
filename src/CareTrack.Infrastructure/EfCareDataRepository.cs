@@ -60,6 +60,20 @@ public sealed class EfCareDataRepository : ICareDataRepository
             .ToListAsync(ct);
     }
 
+    public async Task<IReadOnlyList<Appointment>> ListDueForFollowUpReminderAsync(
+        DateTimeOffset now, TimeSpan repromptAfter, CancellationToken ct = default)
+    {
+        var repromptBefore = now - repromptAfter;
+        return await _db.Appointments
+            .Include(a => a.CareProfile)
+            .Where(a => a.FollowUpCompletedAt == null
+                        && a.EndsAt <= now
+                        && (a.FollowUpLastRemindedAt == null
+                            || a.FollowUpLastRemindedAt <= repromptBefore))
+            .OrderBy(a => a.EndsAt)
+            .ToListAsync(ct);
+    }
+
     public async Task UpdateAppointmentAsync(Appointment appt, CancellationToken ct = default)
     {
         _db.Appointments.Update(appt);
