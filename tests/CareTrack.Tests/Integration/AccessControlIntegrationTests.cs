@@ -26,6 +26,8 @@ public sealed class AccessControlIntegrationTests : IClassFixture<PostgresApiFac
         Guid UserId, string AccessToken, string RefreshToken,
         DateTimeOffset AccessTokenExpiresAt);
 
+    private sealed record ProfileSummaryDto(Guid Id, string DisplayName);
+
     private async Task<AuthResultDto> RegisterAsync(HttpClient client, string label)
     {
         var resp = await client.PostAsJsonAsync("/api/auth/register", new
@@ -145,13 +147,15 @@ public sealed class AccessControlIntegrationTests : IClassFixture<PostgresApiFac
         var grantedList = await client.SendAsync(
             Authed(HttpMethod.Get, "/api/care-profiles", granted));
         Assert.Equal(HttpStatusCode.OK, grantedList.StatusCode);
-        var grantedIds = await grantedList.Content.ReadFromJsonAsync<List<Guid>>();
-        Assert.Contains(profileId, grantedIds!);
+        var grantedProfiles = await grantedList.Content
+            .ReadFromJsonAsync<List<ProfileSummaryDto>>();
+        Assert.Contains(grantedProfiles!, p => p.Id == profileId);
 
         var otherList = await client.SendAsync(
             Authed(HttpMethod.Get, "/api/care-profiles", other));
         Assert.Equal(HttpStatusCode.OK, otherList.StatusCode);
-        var otherIds = await otherList.Content.ReadFromJsonAsync<List<Guid>>();
-        Assert.DoesNotContain(profileId, otherIds!);
+        var otherProfiles = await otherList.Content
+            .ReadFromJsonAsync<List<ProfileSummaryDto>>();
+        Assert.DoesNotContain(otherProfiles!, p => p.Id == profileId);
     }
 }

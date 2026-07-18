@@ -32,10 +32,10 @@ public sealed class CareProfilesController : ControllerBase
         _profiles = profiles;
     }
 
-    /// <summary>Lists only the profiles the caller has access to.</summary>
+    /// <summary>Summaries of only the profiles the caller has access to.</summary>
     [HttpGet]
-    public async Task<IReadOnlyList<Guid>> ListMine(CancellationToken ct)
-        => await _access.AccessibleProfileIdsAsync(_currentUser.RequireUserId(), ct);
+    public async Task<IReadOnlyList<CareProfileSummary>> ListMine(CancellationToken ct)
+        => await _profiles.ListMineAsync(_currentUser.RequireUserId(), ct);
 
     /// <summary>
     /// Creates a profile; the caller becomes its first Owner atomically.

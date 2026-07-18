@@ -11,7 +11,22 @@ builder.Services.AddControllers()
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Browser clients (Blazor WASM dev server, deployed web app). Origins come
+// from config so production lists only the real client origin.
+var clientOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+if (clientOrigins.Length > 0)
+{
+    builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
+        .WithOrigins(clientOrigins)
+        .AllowAnyHeader()
+        .AllowAnyMethod()));
+}
+
 var app = builder.Build();
+
+if (clientOrigins.Length > 0)
+    app.UseCors();
 
 if (app.Environment.IsDevelopment())
 {

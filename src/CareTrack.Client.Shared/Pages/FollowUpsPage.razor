@@ -1,0 +1,121 @@
+@page "/follow-ups"
+@inject CareTrackApi Api
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+
+<PageTitle>Follow-ups — CareTrack</PageTitle>
+
+<h1>How did it go?</h1>
+
+@if (!_loaded)
+{
+    <p role="status">Checking for appointments awaiting a follow-up…</p>
+}
+else
+{
+    @if (_error is not null)
+    {
+        <p class="error" role="alert">@_error</p>
+    }
+
+    @if (_reminders.Count == 0)
+    {
+        <p>All caught up — no appointments are waiting on a follow-up.</p>
+    }
+    else
+    {
+        <p>@_reminders.Count appointment@(_reminders.Count == 1 ? "" : "s") ended
+           without a note. A quick line now saves the detective work later.</p>
+
+        <ul class="card-list">
+            @foreach (var r in _reminders)
+            {
+                var inputId = $"note-{r.AppointmentId:N}";
+                <li class="card">
+                    <span class="card-title">@r.Title</span>
+                    <span class="card-detail">
+                        Ended @r.EndsAt.LocalDateTime.ToString("MMMM d, yyyy 'at' h:mm tt")
+                    </span>
+                    <div class="field">
+                        <label for="@inputId">
+                            Note <span class="hint-inline">(optional)</span>
+                        </label>
+                        <textarea id="@inputId" rows="2"
+                                  @bind="_notes[r.AppointmentId]"></textarea>
+                    </div>
+                    <button type="button" disabled="@_busy"
+                            @onclick="() => CompleteAsync(r)">
+                        Save follow-up
+                    </button>
+                </li>
+            }
+        </ul>
+    }
+    <p role="status" class="visually-hidden-when-empty">@_status</p>
+}
+
+@code {
+    private IReadOnlyList<FollowUpReminder> _reminders = [];
+    private readonly Dictionary<Guid, string?> _notes = new();
+    private bool _loaded;
+    private bool _busy;
+    private string? _error;
+    private string _status = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Api.EnsureInitializedAsync();
+        if (!Api.IsAuthenticated)
+        {
+            Nav.NavigateTo("login");
+            return;
+        }
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _reminders = await Api.GetFollowUpsAsync();
+            foreach (var r in _reminders)
+                _notes.TryAdd(r.AppointmentId, null);
+            _error = null;
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+            if (!Api.IsAuthenticated) Nav.NavigateTo("login");
+        }
+        catch (HttpRequestException)
+        {
+            _error = "Couldn't reach the server. Check your connection and try again.";
+        }
+        _loaded = true;
+    }
+
+    private async Task CompleteAsync(FollowUpReminder reminder)
+    {
+        _error = null;
+        _busy = true;
+        try
+        {
+            await Api.CompleteFollowUpAsync(
+                reminder.CareProfileId, reminder.AppointmentId,
+                _notes.GetValueOrDefault(reminder.AppointmentId));
+            _status = $"Follow-up saved for {reminder.Title}.";
+            await LoadAsync();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "Couldn't reach the server. Check your connection and try again.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

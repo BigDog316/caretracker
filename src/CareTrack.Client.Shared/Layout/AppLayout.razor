@@ -1,0 +1,40 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject CareTrackApi Api
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<header class="site-header">
+    <span class="brand">CareTrack</span>
+    @if (Api.IsAuthenticated)
+    {
+        <nav aria-label="Primary">
+            <ul>
+                <li><NavLink href="" Match="NavLinkMatch.All">Profiles</NavLink></li>
+                <li><NavLink href="follow-ups">Follow-ups</NavLink></li>
+            </ul>
+        </nav>
+        <button type="button" class="link-button" @onclick="SignOutAsync">
+            Sign out
+        </button>
+    }
+</header>
+
+<main id="main" tabindex="-1">
+    @Body
+</main>
+
+@code {
+    protected override void OnInitialized() => Api.AuthChanged += OnAuthChanged;
+
+    private void OnAuthChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task SignOutAsync()
+    {
+        await Api.LogoutAsync();
+        Nav.NavigateTo("login");
+    }
+
+    public void Dispose() => Api.AuthChanged -= OnAuthChanged;
+}

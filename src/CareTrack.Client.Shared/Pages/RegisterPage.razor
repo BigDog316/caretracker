@@ -1,0 +1,71 @@
+@page "/register"
+@inject CareTrackApi Api
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+
+<PageTitle>Create an account — CareTrack</PageTitle>
+
+<h1>Create an account</h1>
+
+@if (_error is not null)
+{
+    <p class="error" role="alert" id="register-error">@_error</p>
+}
+
+<form @onsubmit="SubmitAsync" @onsubmit:preventDefault>
+    <div class="field">
+        <label for="displayName">Your name</label>
+        <input id="displayName" type="text" autocomplete="name" required
+               @bind="_displayName" aria-describedby="@ErrorRef" />
+    </div>
+    <div class="field">
+        <label for="email">Email</label>
+        <input id="email" type="email" autocomplete="email" required
+               @bind="_email" aria-describedby="@ErrorRef" />
+    </div>
+    <div class="field">
+        <label for="password">Password</label>
+        <input id="password" type="password" autocomplete="new-password" required
+               @bind="_password" aria-describedby="password-hint @ErrorRef" />
+        <p id="password-hint" class="hint">
+            At least 8 characters with an uppercase letter, a number, and a symbol.
+        </p>
+    </div>
+    <button type="submit" disabled="@_busy">
+        @(_busy ? "Creating account…" : "Create account")
+    </button>
+</form>
+
+<p>Already have an account? <a href="login">Sign in</a>.</p>
+
+@code {
+    private string _displayName = "";
+    private string _email = "";
+    private string _password = "";
+    private string? _error;
+    private bool _busy;
+
+    private string? ErrorRef => _error is null ? null : "register-error";
+
+    private async Task SubmitAsync()
+    {
+        _error = null;
+        _busy = true;
+        try
+        {
+            await Api.RegisterAsync(_email.Trim(), _password, _displayName.Trim());
+            Nav.NavigateTo("");
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "Couldn't reach the server. Check your connection and try again.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

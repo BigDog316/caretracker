@@ -61,9 +61,14 @@ public sealed class CareProfileCreationIntegrationTests
         var created = await create.Content.ReadFromJsonAsync<Dictionary<string, object>>();
         var profileId = Guid.Parse(created!["id"].ToString()!);
 
-        // Creator: listed, readable, and writable (Owner ≥ Editor).
+        // Creator: listed with its display name, readable, and writable
+        // (Owner ≥ Editor).
         var mine = await client.SendAsync(Authed(HttpMethod.Get, "/api/care-profiles", creator));
-        Assert.Contains(profileId, (await mine.Content.ReadFromJsonAsync<List<Guid>>())!);
+        var summaries = await mine.Content
+            .ReadFromJsonAsync<List<Dictionary<string, object?>>>();
+        Assert.Contains(summaries!, p =>
+            Guid.Parse(p["id"]!.ToString()!) == profileId
+            && p["displayName"]!.ToString() == "Integration Kiddo");
 
         var read = await client.SendAsync(Authed(
             HttpMethod.Get, $"/api/care-profiles/{profileId}", creator));

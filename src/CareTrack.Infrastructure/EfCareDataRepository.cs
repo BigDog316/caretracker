@@ -22,6 +22,15 @@ public sealed class EfCareDataRepository : ICareDataRepository
         await _db.SaveChangesAsync(ct);
     }
 
+    public async Task<IReadOnlyList<CareProfile>> ListCareProfilesAsync(
+        IReadOnlyCollection<Guid> ids, CancellationToken ct = default)
+    {
+        var idArray = ids.ToArray();
+        return await _db.CareProfiles.AsNoTracking()
+            .Where(p => idArray.Contains(p.Id))
+            .ToListAsync(ct);
+    }
+
     // ---- Providers ----
 
     public async Task<Provider> AddProviderAsync(Provider provider, CancellationToken ct = default)

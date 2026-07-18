@@ -1,0 +1,124 @@
+@page "/"
+@inject CareTrackApi Api
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+
+<PageTitle>Care profiles — CareTrack</PageTitle>
+
+<h1>Care profiles</h1>
+
+@if (!_loaded)
+{
+    <p role="status">Loading your profiles…</p>
+}
+else
+{
+    @if (_error is not null)
+    {
+        <p class="error" role="alert">@_error</p>
+    }
+
+    @if (_profiles.Count == 0)
+    {
+        <p>No profiles yet. Create one below to start tracking care.</p>
+    }
+    else
+    {
+        <ul class="card-list">
+            @foreach (var p in _profiles)
+            {
+                <li class="card">
+                    <span class="card-title">@p.DisplayName</span>
+                    @if (p.DateOfBirth is DateOnly dob)
+                    {
+                        <span class="card-detail">Born @dob.ToString("MMMM d, yyyy")</span>
+                    }
+                </li>
+            }
+        </ul>
+    }
+
+    <section aria-labelledby="create-heading">
+        <h2 id="create-heading">Add a profile</h2>
+        <form @onsubmit="CreateAsync" @onsubmit:preventDefault>
+            <div class="field">
+                <label for="new-name">Name</label>
+                <input id="new-name" type="text" required @bind="_newName" />
+            </div>
+            <div class="field">
+                <label for="new-dob">Date of birth <span class="hint-inline">(optional)</span></label>
+                <input id="new-dob" type="date" @bind="_newDob" />
+            </div>
+            <button type="submit" disabled="@_busy">
+                @(_busy ? "Adding…" : "Add profile")
+            </button>
+        </form>
+        <p role="status" class="visually-hidden-when-empty">@_status</p>
+    </section>
+}
+
+@code {
+    private IReadOnlyList<CareProfileSummary> _profiles = [];
+    private bool _loaded;
+    private bool _busy;
+    private string? _error;
+    private string _status = "";
+    private string _newName = "";
+    private DateOnly? _newDob;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Api.EnsureInitializedAsync();
+        if (!Api.IsAuthenticated)
+        {
+            Nav.NavigateTo("login");
+            return;
+        }
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        try
+        {
+            _profiles = await Api.GetProfilesAsync();
+            _error = null;
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+            if (!Api.IsAuthenticated) Nav.NavigateTo("login");
+        }
+        catch (HttpRequestException)
+        {
+            _error = "Couldn't reach the server. Check your connection and try again.";
+        }
+        _loaded = true;
+    }
+
+    private async Task CreateAsync()
+    {
+        _error = null;
+        _status = "";
+        _busy = true;
+        try
+        {
+            var created = await Api.CreateProfileAsync(_newName.Trim(), _newDob);
+            _status = $"Added {created.DisplayName}.";
+            _newName = "";
+            _newDob = null;
+            await LoadAsync();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "Couldn't reach the server. Check your connection and try again.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

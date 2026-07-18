@@ -32,7 +32,7 @@ public class SchoolAndAgencyTests
 
     private AgencyService Agencies() => new(_repo, _access);
     private SchoolPlanService Plans() => new(_repo, _access, _clock);
-    private CareProfileService Profiles() => new(_repo);
+    private CareProfileService Profiles() => new(_repo, _access);
 
     // ---- Profile creation ----
 

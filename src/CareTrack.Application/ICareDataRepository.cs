@@ -18,6 +18,9 @@ public interface ICareDataRepository
     Task CreateCareProfileAsync(
         CareProfile profile, AccessGrant ownerGrant, CancellationToken ct = default);
 
+    Task<IReadOnlyList<CareProfile>> ListCareProfilesAsync(
+        IReadOnlyCollection<Guid> ids, CancellationToken ct = default);
+
     // Providers
     Task<Provider> AddProviderAsync(Provider provider, CancellationToken ct = default);
     Task<Provider?> GetProviderAsync(Guid id, CancellationToken ct = default);

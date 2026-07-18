@@ -30,6 +30,11 @@ internal sealed class InMemoryCareDataRepository : ICareDataRepository
         return Task.CompletedTask;
     }
 
+    public Task<IReadOnlyList<CareProfile>> ListCareProfilesAsync(
+        IReadOnlyCollection<Guid> ids, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<CareProfile>>(
+            _profiles.Where(p => ids.Contains(p.Id)).ToList());
+
     public Task<Agency> AddAgencyAsync(Agency a, CancellationToken ct = default)
     { _agencies.Add(a); return Task.FromResult(a); }
 
