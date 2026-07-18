@@ -11,3 +11,6 @@ TestResults/
 
 # macOS
 .DS_Store
+
+# Claude Code session files
+.claude/
