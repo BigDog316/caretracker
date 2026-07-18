@@ -47,12 +47,30 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ICalendarSync, NoOpCalendarSync>();
         services.AddSingleton<IClock, SystemClock>();
 
-        // "How did it go?" prompt delivery. LoggingReminderDelivery is the dev
-        // channel; swap for push/email in production.
+        // "How did it go?" prompt delivery goes out as Web Push notifications
+        // when VAPID keys are configured; otherwise prompts just log (dev
+        // fallback), so the sweep behaves identically either way.
         services.Configure<FollowUpReminderOptions>(
             config.GetSection(FollowUpReminderOptions.SectionName));
-        services.AddScoped<IReminderDelivery,
-            CareTrack.Infrastructure.Reminders.LoggingReminderDelivery>();
+        services.Configure<CareTrack.Infrastructure.Push.WebPushOptions>(
+            config.GetSection(CareTrack.Infrastructure.Push.WebPushOptions.SectionName));
+        services.AddScoped<CareTrack.Infrastructure.Push.IPushSubscriptionStore,
+            CareTrack.Infrastructure.Push.EfPushSubscriptionStore>();
+        var webPush = config
+            .GetSection(CareTrack.Infrastructure.Push.WebPushOptions.SectionName)
+            .Get<CareTrack.Infrastructure.Push.WebPushOptions>();
+        if (webPush?.IsConfigured == true)
+        {
+            services.AddSingleton<CareTrack.Infrastructure.Push.IWebPushSender,
+                CareTrack.Infrastructure.Push.VapidWebPushSender>();
+            services.AddScoped<IReminderDelivery,
+                CareTrack.Infrastructure.Push.WebPushReminderDelivery>();
+        }
+        else
+        {
+            services.AddScoped<IReminderDelivery,
+                CareTrack.Infrastructure.Reminders.LoggingReminderDelivery>();
+        }
         services.AddScoped(sp => new FollowUpReminderDispatcher(
             sp.GetRequiredService<ICareDataRepository>(),
             sp.GetRequiredService<IAccessGrantStore>(),

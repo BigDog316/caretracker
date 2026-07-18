@@ -25,6 +25,7 @@ public class CareTrackDbContext
     public DbSet<DocumentTag> DocumentTags => Set<DocumentTag>();
     public DbSet<Card> Cards => Set<Card>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Push.UserPushSubscription> PushSubscriptions => Set<Push.UserPushSubscription>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -40,6 +41,16 @@ public class CareTrackDbContext
             e.HasKey(x => x.Id);
             e.Property(x => x.Token).IsRequired().HasMaxLength(200);
             e.HasIndex(x => x.Token).IsUnique();
+            e.HasIndex(x => x.UserId);
+        });
+
+        b.Entity<Push.UserPushSubscription>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Endpoint).IsRequired().HasMaxLength(2000);
+            e.Property(x => x.P256dh).IsRequired().HasMaxLength(200);
+            e.Property(x => x.Auth).IsRequired().HasMaxLength(100);
+            e.HasIndex(x => x.Endpoint).IsUnique();
             e.HasIndex(x => x.UserId);
         });
 
