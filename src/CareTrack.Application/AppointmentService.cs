@@ -51,7 +51,7 @@ public sealed class AppointmentService
             Location = req.Location
         };
 
-        appt.ExternalCalendarEventId = await _calendar.CreateEventAsync(appt, ct);
+        appt.ExternalCalendarEventId = await _calendar.CreateEventAsync(userId, appt, ct);
         return await _repo.AddAppointmentAsync(appt, ct);
     }
 

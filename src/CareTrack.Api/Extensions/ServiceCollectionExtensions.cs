@@ -47,9 +47,23 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IDocumentStore,
             CareTrack.Infrastructure.Storage.LocalDiskDocumentStore>();
 
-        // Calendar sync + clock. Swap NoOpCalendarSync for Google/Apple impls
-        // once a user connects a calendar.
-        services.AddScoped<ICalendarSync, NoOpCalendarSync>();
+        // Calendar sync + clock. Google sync activates when OAuth credentials
+        // are configured (user-secrets/env: GoogleCalendar:ClientId/ClientSecret);
+        // otherwise events simply don't sync. Apple arrives with the MAUI client.
+        services.Configure<CareTrack.Infrastructure.Calendar.GoogleCalendarOptions>(
+            config.GetSection(CareTrack.Infrastructure.Calendar.GoogleCalendarOptions.SectionName));
+        services.AddScoped<CareTrack.Infrastructure.Calendar.IGoogleCalendarConnectionStore,
+            CareTrack.Infrastructure.Calendar.EfGoogleCalendarConnectionStore>();
+        services.AddMemoryCache();
+        services.AddHttpClient();
+        var googleCal = config
+            .GetSection(CareTrack.Infrastructure.Calendar.GoogleCalendarOptions.SectionName)
+            .Get<CareTrack.Infrastructure.Calendar.GoogleCalendarOptions>();
+        if (googleCal?.IsConfigured == true)
+            services.AddHttpClient<ICalendarSync,
+                CareTrack.Infrastructure.Calendar.GoogleCalendarSync>();
+        else
+            services.AddScoped<ICalendarSync, NoOpCalendarSync>();
         services.AddSingleton<IClock, SystemClock>();
 
         // "How did it go?" prompt delivery goes out as Web Push notifications
