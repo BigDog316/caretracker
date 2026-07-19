@@ -14,6 +14,7 @@ var apiBase = builder.Configuration["ApiBaseUrl"]
 
 builder.Services.AddScoped(_ => new HttpClient { BaseAddress = new Uri(apiBase) });
 builder.Services.AddScoped<ITokenStore, LocalStorageTokenStore>();
+builder.Services.AddScoped<IFileSaver, BrowserFileSaver>();
 builder.Services.AddScoped<CareTrackApi>();
 
 await builder.Build().RunAsync();

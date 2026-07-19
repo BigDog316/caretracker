@@ -1,0 +1,178 @@
+@page "/profiles/{ProfileId:guid}/documents"
+@inject CareTrackApi Api
+@inject IFileSaver FileSaver
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+
+<PageTitle>Documents — CareTrack</PageTitle>
+
+<p><a href="profiles/@ProfileId">Back to profile</a></p>
+<h1>Documents</h1>
+
+@if (!_loaded)
+{
+    <p role="status">Loading documents…</p>
+}
+else
+{
+    @if (_error is not null)
+    {
+        <p class="error" role="alert">@_error</p>
+    }
+    <p role="status" class="visually-hidden-when-empty">@_status</p>
+
+    <form role="search" @onsubmit="ReloadAsync" @onsubmit:preventDefault>
+        <div class="field">
+            <label for="tag-filter">Filter by tag <span class="hint-inline">(optional)</span></label>
+            <input id="tag-filter" type="search" @bind="_tagFilter" />
+        </div>
+        <button type="submit" disabled="@_busy">Filter</button>
+    </form>
+
+    @if (_documents.Count == 0)
+    {
+        <p>@(string.IsNullOrWhiteSpace(_tagFilter)
+            ? "No documents yet." : "No documents with that tag.")</p>
+    }
+    else
+    {
+        <ul class="card-list">
+            @foreach (var d in _documents)
+            {
+                <li class="card">
+                    <span class="card-title">@d.FileName</span>
+                    <span class="card-detail">
+                        @FormatSize(d.SizeBytes) — uploaded
+                        @d.CreatedAt.LocalDateTime.ToString("MMMM d, yyyy")
+                        @(d.Tags.Count > 0
+                            ? " — " + string.Join(", ", d.Tags.Select(t => t.Value))
+                            : "")
+                    </span>
+                    @if (d.Description is not null)
+                    {
+                        <span class="card-detail">@d.Description</span>
+                    }
+                    <div class="button-row">
+                        <button type="button" disabled="@_busy"
+                                @onclick="() => DownloadAsync(d)">
+                            Download @d.FileName
+                        </button>
+                        <button type="button" class="danger" disabled="@_busy"
+                                @onclick="() => DeleteAsync(d)">
+                            Delete @d.FileName
+                        </button>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+
+    <section aria-labelledby="upload-heading">
+        <h2 id="upload-heading">Upload a document</h2>
+        <form @onsubmit="UploadAsync" @onsubmit:preventDefault>
+            <div class="field">
+                <label for="doc-file">File</label>
+                <InputFile id="doc-file" OnChange="OnFileSelected" />
+            </div>
+            <div class="field">
+                <label for="doc-desc">Description <span class="hint-inline">(optional)</span></label>
+                <input id="doc-desc" type="text" @bind="_description" />
+            </div>
+            <div class="field">
+                <label for="doc-tags">Tags <span class="hint-inline">(optional, comma-separated)</span></label>
+                <input id="doc-tags" type="text" @bind="_tagsInput" />
+            </div>
+            <button type="submit" disabled="@(_busy || _file is null)">
+                @(_busy ? "Uploading…" : "Upload")
+            </button>
+        </form>
+    </section>
+}
+
+@code {
+    [Parameter] public Guid ProfileId { get; set; }
+
+    private const long MaxFileBytes = 50 * 1024 * 1024;
+
+    private IReadOnlyList<DocumentSummary> _documents = [];
+    private bool _loaded;
+    private bool _busy;
+    private string? _error;
+    private string _status = "";
+    private string _tagFilter = "";
+    private string? _description;
+    private string _tagsInput = "";
+    private Microsoft.AspNetCore.Components.Forms.IBrowserFile? _file;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Api.EnsureInitializedAsync();
+        if (!Api.IsAuthenticated)
+        {
+            Nav.NavigateTo("login");
+            return;
+        }
+        await GuardedAsync(ReloadCoreAsync);
+        _loaded = true;
+    }
+
+    private Task ReloadAsync() => GuardedAsync(ReloadCoreAsync);
+
+    private async Task ReloadCoreAsync()
+        => _documents = await Api.GetDocumentsAsync(
+            ProfileId, string.IsNullOrWhiteSpace(_tagFilter) ? null : _tagFilter.Trim());
+
+    private void OnFileSelected(
+        Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs e)
+        => _file = e.File;
+
+    private Task UploadAsync() => GuardedAsync(async () =>
+    {
+        if (_file is null) return;
+        if (_file.Size > MaxFileBytes)
+            throw new ApiException("Files can be at most 50 MB.");
+
+        var tags = _tagsInput
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .ToArray();
+        await using var stream = _file.OpenReadStream(MaxFileBytes);
+        await Api.UploadDocumentAsync(
+            ProfileId, _file.Name, _file.ContentType, stream, _description, tags);
+        _status = $"Uploaded {_file.Name}.";
+        _file = null;
+        _description = null;
+        _tagsInput = "";
+        await ReloadCoreAsync();
+    });
+
+    private Task DownloadAsync(DocumentSummary doc) => GuardedAsync(async () =>
+    {
+        var file = await Api.DownloadDocumentAsync(ProfileId, doc.Id);
+        await FileSaver.SaveAsync(file);
+        _status = $"Downloaded {file.FileName}.";
+    });
+
+    private Task DeleteAsync(DocumentSummary doc) => GuardedAsync(async () =>
+    {
+        await Api.DeleteDocumentAsync(ProfileId, doc.Id);
+        _status = $"Deleted {doc.FileName}.";
+        await ReloadCoreAsync();
+    });
+
+    private async Task GuardedAsync(Func<Task> action)
+    {
+        _error = null;
+        _busy = true;
+        try { await action(); }
+        catch (ApiException ex) { _error = ex.Message; }
+        catch (HttpRequestException)
+        { _error = "Couldn't reach the server. Check your connection and try again."; }
+        finally { _busy = false; }
+    }
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        < 1024 => $"{bytes} B",
+        < 1024 * 1024 => $"{bytes / 1024.0:0.#} KB",
+        _ => $"{bytes / (1024.0 * 1024.0):0.#} MB"
+    };
+}

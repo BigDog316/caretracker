@@ -230,6 +230,28 @@ button:disabled { opacity: 0.65; cursor: wait; }
 
 .visually-hidden-when-empty:empty { display: none; }
 
+.button-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+button.danger { background: var(--error); }
+
+.section-links {
+    list-style: none;
+    display: flex;
+    gap: 0.5rem;
+    padding: 0;
+    margin: 0 0 1rem;
+}
+
+.section-links a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 0.875rem;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    text-decoration: none;
+}
+
 /* ---- Blazor plumbing (template) ---- */
 
 .validation-message { color: var(--error); }

@@ -173,6 +173,110 @@ public sealed class CareTrackApi
             throw new ApiException("Couldn't save the note.");
     }
 
+    // ---- Documents ----
+
+    public Task<IReadOnlyList<DocumentSummary>> GetDocumentsAsync(
+        Guid profileId, string? tag = null)
+        => GetAsync<IReadOnlyList<DocumentSummary>>(
+            $"api/care-profiles/{profileId}/documents"
+            + (string.IsNullOrWhiteSpace(tag)
+                ? "" : $"?tag={Uri.EscapeDataString(tag)}"));
+
+    public async Task UploadDocumentAsync(
+        Guid profileId, string fileName, string contentType, Stream content,
+        string? description, IReadOnlyCollection<string> tags)
+    {
+        var resp = await SendAuthedAsync(() =>
+        {
+            var form = new MultipartFormDataContent();
+            var filePart = new StreamContent(content);
+            if (!string.IsNullOrWhiteSpace(contentType))
+                filePart.Headers.ContentType =
+                    new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+            form.Add(filePart, "file", fileName);
+            if (!string.IsNullOrWhiteSpace(description))
+                form.Add(new StringContent(description), "description");
+            foreach (var tag in tags)
+                form.Add(new StringContent(tag), "tags");
+            return new HttpRequestMessage(HttpMethod.Post,
+                $"api/care-profiles/{profileId}/documents")
+            { Content = form };
+        });
+        if (!resp.IsSuccessStatusCode)
+            throw new ApiException("Couldn't upload the file.");
+    }
+
+    public async Task<FileDownload> DownloadDocumentAsync(
+        Guid profileId, Guid documentId)
+    {
+        var resp = await SendAuthedAsync(() => new HttpRequestMessage(
+            HttpMethod.Get,
+            $"api/care-profiles/{profileId}/documents/{documentId}/content"));
+        if (!resp.IsSuccessStatusCode)
+            throw new ApiException("Couldn't download the file.");
+        return new FileDownload(
+            resp.Content.Headers.ContentDisposition?.FileNameStar
+                ?? resp.Content.Headers.ContentDisposition?.FileName?.Trim('"')
+                ?? "document",
+            resp.Content.Headers.ContentType?.MediaType ?? "application/octet-stream",
+            await resp.Content.ReadAsByteArrayAsync());
+    }
+
+    public async Task DeleteDocumentAsync(Guid profileId, Guid documentId)
+    {
+        var resp = await SendAuthedAsync(() => new HttpRequestMessage(
+            HttpMethod.Delete,
+            $"api/care-profiles/{profileId}/documents/{documentId}"));
+        if (!resp.IsSuccessStatusCode)
+            throw new ApiException("Couldn't delete the file.");
+    }
+
+    // ---- School plans + agencies ----
+
+    public Task<IReadOnlyList<SchoolPlanSummary>> GetSchoolPlansAsync(Guid profileId)
+        => GetAsync<IReadOnlyList<SchoolPlanSummary>>(
+            $"api/care-profiles/{profileId}/school-plans");
+
+    public Task<IReadOnlyList<SchoolPlanSummary>> GetUpcomingReviewsAsync(
+        Guid profileId, int withinDays = 60)
+        => GetAsync<IReadOnlyList<SchoolPlanSummary>>(
+            $"api/care-profiles/{profileId}/school-plans/upcoming-reviews?withinDays={withinDays}");
+
+    public async Task AddSchoolPlanAsync(
+        Guid profileId, string type, string? school, string? title,
+        DateOnly? reviewDueOn)
+    {
+        var resp = await SendAuthedAsync(() => new HttpRequestMessage(
+            HttpMethod.Post, $"api/care-profiles/{profileId}/school-plans")
+        {
+            Content = JsonContent.Create(
+                new { type, school, title, reviewDueOn }, options: Json)
+        });
+        if (!resp.IsSuccessStatusCode)
+            throw new ApiException("Couldn't add the school plan.");
+    }
+
+    public Task<IReadOnlyList<AgencySummary>> GetAgenciesAsync(Guid profileId)
+        => GetAsync<IReadOnlyList<AgencySummary>>(
+            $"api/care-profiles/{profileId}/agencies");
+
+    public Task<IReadOnlyList<string>> GetAgencyKindsAsync(Guid profileId)
+        => GetAsync<IReadOnlyList<string>>(
+            $"api/care-profiles/{profileId}/agencies/kinds");
+
+    public async Task AddAgencyAsync(
+        Guid profileId, string name, string kind, string? contactName, string? phone)
+    {
+        var resp = await SendAuthedAsync(() => new HttpRequestMessage(
+            HttpMethod.Post, $"api/care-profiles/{profileId}/agencies")
+        {
+            Content = JsonContent.Create(
+                new { name, kind, contactName, phone }, options: Json)
+        });
+        if (!resp.IsSuccessStatusCode)
+            throw new ApiException("Couldn't add the agency.");
+    }
+
     // ---- Follow-ups ----
 
     public Task<IReadOnlyList<FollowUpReminder>> GetFollowUpsAsync()

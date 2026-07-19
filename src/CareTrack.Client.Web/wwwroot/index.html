@@ -21,6 +21,18 @@
         <a href="." class="reload">Reload</a>
         <span class="dismiss">🗙</span>
     </div>
+    <script>
+        // Used by BrowserFileSaver: turn downloaded bytes into a saved file.
+        function caretrackSaveFile(fileName, contentType, base64) {
+            const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+            const url = URL.createObjectURL(new Blob([bytes], { type: contentType }));
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = fileName;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
     <script src="_framework/blazor.webassembly#[.{fingerprint}].js"></script>
 </body>
 

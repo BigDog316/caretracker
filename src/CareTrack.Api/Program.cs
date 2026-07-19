@@ -6,8 +6,16 @@ builder.Services.AddCareTrackPersistence(builder.Configuration);
 builder.Services.AddCareTrackAuth(builder.Configuration);
 
 builder.Services.AddControllers()
-    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(
-        new System.Text.Json.Serialization.JsonStringEnumConverter()));
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+        // Controllers serialize domain entities whose EF navigations can
+        // point back at their parents (Document <-> DocumentTag); render
+        // those as null instead of throwing.
+        o.JsonSerializerOptions.ReferenceHandler =
+            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
@@ -20,7 +28,9 @@ if (clientOrigins.Length > 0)
     builder.Services.AddCors(o => o.AddDefaultPolicy(p => p
         .WithOrigins(clientOrigins)
         .AllowAnyHeader()
-        .AllowAnyMethod()));
+        .AllowAnyMethod()
+        // Lets browser clients read download filenames.
+        .WithExposedHeaders("Content-Disposition")));
 }
 
 var app = builder.Build();

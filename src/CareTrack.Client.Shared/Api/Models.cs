@@ -27,6 +27,34 @@ public sealed record NoteSummary(
     Guid Id, string Body, Guid? AppointmentId, Guid? ProviderId,
     DateTimeOffset CreatedAt);
 
+public sealed record DocumentTagDto(string Value);
+
+public sealed record DocumentSummary(
+    Guid Id, string FileName, string ContentType, long SizeBytes,
+    string? Description, DateTimeOffset CreatedAt,
+    IReadOnlyList<DocumentTagDto> Tags);
+
+public sealed record FileDownload(
+    string FileName, string ContentType, byte[] Content);
+
+public sealed record SchoolPlanSummary(
+    Guid Id, string Type, string? School, string? Title,
+    DateOnly? EffectiveOn, DateOnly? ReviewDueOn, Guid? DocumentId,
+    string? Notes);
+
+public sealed record AgencySummary(
+    Guid Id, string Name, string Kind, string? ContactName,
+    string? Phone, string? Email, string? Address, string? Notes);
+
+/// <summary>
+/// Saves a downloaded file on the host platform (browser blob download on
+/// the web; file system + share sheet in the MAUI app).
+/// </summary>
+public interface IFileSaver
+{
+    Task SaveAsync(FileDownload file);
+}
+
 /// <summary>Tokens persisted between sessions by the host platform.</summary>
 public sealed record StoredTokens(
     Guid UserId, string AccessToken, string RefreshToken);

@@ -1,0 +1,230 @@
+@page "/profiles/{ProfileId:guid}/school"
+@inject CareTrackApi Api
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+
+<PageTitle>School &amp; agencies — CareTrack</PageTitle>
+
+<p><a href="profiles/@ProfileId">Back to profile</a></p>
+<h1>School &amp; agencies</h1>
+
+@if (!_loaded)
+{
+    <p role="status">Loading…</p>
+}
+else
+{
+    @if (_error is not null)
+    {
+        <p class="error" role="alert">@_error</p>
+    }
+    <p role="status" class="visually-hidden-when-empty">@_status</p>
+
+    <section aria-labelledby="plans-heading">
+        <h2 id="plans-heading">School plans</h2>
+
+        @if (_upcoming.Count > 0)
+        {
+            <p class="error" role="alert">
+                @_upcoming.Count plan@(_upcoming.Count == 1 ? "" : "s") due for
+                review in the next 60 days.
+            </p>
+        }
+
+        @if (_plans.Count == 0)
+        {
+            <p>No school plans yet.</p>
+        }
+        else
+        {
+            <ul class="card-list">
+                @foreach (var p in _plans)
+                {
+                    <li class="card">
+                        <span class="card-title">
+                            @(p.Title ?? PlanTypeLabel(p.Type))
+                        </span>
+                        <span class="card-detail">
+                            @PlanTypeLabel(p.Type)@(p.School is null ? "" : $" — {p.School}")
+                        </span>
+                        @if (p.ReviewDueOn is DateOnly due)
+                        {
+                            <span class="card-detail">
+                                Review due @due.ToString("MMMM d, yyyy")
+                            </span>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+
+        <details>
+            <summary>Add a school plan</summary>
+            <form @onsubmit="AddPlanAsync" @onsubmit:preventDefault>
+                <div class="field">
+                    <label for="plan-type">Type</label>
+                    <select id="plan-type" @bind="_planType">
+                        <option value="Iep">IEP</option>
+                        <option value="Plan504">504 plan</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="plan-school">School <span class="hint-inline">(optional)</span></label>
+                    <input id="plan-school" type="text" @bind="_planSchool" />
+                </div>
+                <div class="field">
+                    <label for="plan-title">Title <span class="hint-inline">(optional)</span></label>
+                    <input id="plan-title" type="text" @bind="_planTitle" />
+                </div>
+                <div class="field">
+                    <label for="plan-review">Review due <span class="hint-inline">(optional)</span></label>
+                    <input id="plan-review" type="date" @bind="_planReview" />
+                </div>
+                <button type="submit" disabled="@_busy">Add plan</button>
+            </form>
+        </details>
+    </section>
+
+    <section aria-labelledby="agencies-heading">
+        <h2 id="agencies-heading">Agencies</h2>
+        @if (_agencies.Count == 0)
+        {
+            <p>No agencies yet.</p>
+        }
+        else
+        {
+            <ul class="card-list">
+                @foreach (var a in _agencies)
+                {
+                    <li class="card">
+                        <span class="card-title">@a.Name</span>
+                        <span class="card-detail">@a.Kind</span>
+                        @if (a.ContactName is not null)
+                        {
+                            <span class="card-detail">Contact: @a.ContactName</span>
+                        }
+                        @if (a.Phone is not null)
+                        {
+                            <span class="card-detail"><a href="tel:@a.Phone">@a.Phone</a></span>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+
+        <details>
+            <summary>Add an agency</summary>
+            <form @onsubmit="AddAgencyAsync" @onsubmit:preventDefault>
+                <div class="field">
+                    <label for="agency-name">Name</label>
+                    <input id="agency-name" type="text" required @bind="_agencyName" />
+                </div>
+                <div class="field">
+                    <label for="agency-kind">Kind</label>
+                    <select id="agency-kind" @bind="_agencyKind">
+                        @foreach (var kind in _kinds)
+                        {
+                            <option value="@kind">@kind</option>
+                        }
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="agency-contact">Contact person <span class="hint-inline">(optional)</span></label>
+                    <input id="agency-contact" type="text" @bind="_agencyContact" />
+                </div>
+                <div class="field">
+                    <label for="agency-phone">Phone <span class="hint-inline">(optional)</span></label>
+                    <input id="agency-phone" type="tel" @bind="_agencyPhone" />
+                </div>
+                <button type="submit" disabled="@_busy">Add agency</button>
+            </form>
+        </details>
+    </section>
+}
+
+@code {
+    [Parameter] public Guid ProfileId { get; set; }
+
+    private IReadOnlyList<SchoolPlanSummary> _plans = [];
+    private IReadOnlyList<SchoolPlanSummary> _upcoming = [];
+    private IReadOnlyList<AgencySummary> _agencies = [];
+    private IReadOnlyList<string> _kinds = [];
+    private bool _loaded;
+    private bool _busy;
+    private string? _error;
+    private string _status = "";
+
+    private string _planType = "Iep";
+    private string? _planSchool;
+    private string? _planTitle;
+    private DateOnly? _planReview;
+
+    private string _agencyName = "";
+    private string _agencyKind = "Other";
+    private string? _agencyContact;
+    private string? _agencyPhone;
+
+    private static string PlanTypeLabel(string type) => type switch
+    {
+        "Iep" => "IEP",
+        "Plan504" => "504 plan",
+        _ => "Plan"
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Api.EnsureInitializedAsync();
+        if (!Api.IsAuthenticated)
+        {
+            Nav.NavigateTo("login");
+            return;
+        }
+        await GuardedAsync(async () =>
+        {
+            _kinds = await Api.GetAgencyKindsAsync(ProfileId);
+            if (_kinds.Count > 0) _agencyKind = _kinds[0];
+            await ReloadAsync();
+        });
+        _loaded = true;
+    }
+
+    private async Task ReloadAsync()
+    {
+        _plans = await Api.GetSchoolPlansAsync(ProfileId);
+        _upcoming = await Api.GetUpcomingReviewsAsync(ProfileId);
+        _agencies = await Api.GetAgenciesAsync(ProfileId);
+    }
+
+    private Task AddPlanAsync() => GuardedAsync(async () =>
+    {
+        await Api.AddSchoolPlanAsync(
+            ProfileId, _planType, Trimmed(_planSchool), Trimmed(_planTitle), _planReview);
+        _status = "School plan added.";
+        _planSchool = null; _planTitle = null; _planReview = null;
+        await ReloadAsync();
+    });
+
+    private Task AddAgencyAsync() => GuardedAsync(async () =>
+    {
+        await Api.AddAgencyAsync(
+            ProfileId, _agencyName.Trim(), _agencyKind,
+            Trimmed(_agencyContact), Trimmed(_agencyPhone));
+        _status = $"Added agency {_agencyName.Trim()}.";
+        _agencyName = ""; _agencyContact = null; _agencyPhone = null;
+        await ReloadAsync();
+    });
+
+    private async Task GuardedAsync(Func<Task> action)
+    {
+        _error = null;
+        _busy = true;
+        try { await action(); }
+        catch (ApiException ex) { _error = ex.Message; }
+        catch (HttpRequestException)
+        { _error = "Couldn't reach the server. Check your connection and try again."; }
+        finally { _busy = false; }
+    }
+
+    private static string? Trimmed(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}

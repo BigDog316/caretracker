@@ -12,6 +12,13 @@ else
 {
     <h1>@_name</h1>
 
+    <nav aria-label="Profile sections">
+        <ul class="section-links">
+            <li><a href="profiles/@ProfileId/documents">Documents</a></li>
+            <li><a href="profiles/@ProfileId/school">School &amp; agencies</a></li>
+        </ul>
+    </nav>
+
     @if (_error is not null)
     {
         <p class="error" role="alert">@_error</p>
