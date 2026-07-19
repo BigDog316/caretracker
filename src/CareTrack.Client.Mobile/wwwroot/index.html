@@ -2,7 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <!-- No maximum-scale / user-scalable=no: pinch zoom must stay available
+         (WCAG 1.4.4 Resize Text). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>CareTrack</title>
     <base href="/" />
     <link rel="stylesheet" href="_content/CareTrack.Client.Shared/app.css" />
