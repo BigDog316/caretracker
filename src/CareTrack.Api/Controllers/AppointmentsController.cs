@@ -1,4 +1,5 @@
 using CareTrack.Api.Auth;
+using CareTrack.Api;
 using CareTrack.Application;
 using CareTrack.Domain;
 using Microsoft.AspNetCore.Authorization;
@@ -22,8 +23,9 @@ public sealed class AppointmentsController : ControllerBase
 
     [HttpGet]
     [RequireCareProfile(AccessRole.Viewer)]
-    public async Task<IReadOnlyList<Appointment>> List(Guid careProfileId, CancellationToken ct)
-        => await _service.ListAsync(_user.RequireUserId(), careProfileId, ct);
+    public async Task<IReadOnlyList<Dtos.AppointmentDto>> List(Guid careProfileId, CancellationToken ct)
+        => (await _service.ListAsync(_user.RequireUserId(), careProfileId, ct))
+            .ToDtos(a => a.ToDto());
 
     [HttpPost]
     [RequireCareProfile(AccessRole.Editor)]
@@ -31,7 +33,7 @@ public sealed class AppointmentsController : ControllerBase
         Guid careProfileId, [FromBody] CreateAppointmentRequest req, CancellationToken ct)
     {
         var appt = await _service.CreateAsync(_user.RequireUserId(), careProfileId, req, ct);
-        return Created($"api/care-profiles/{careProfileId}/appointments/{appt.Id}", appt);
+        return Created($"api/care-profiles/{careProfileId}/appointments/{appt.Id}", appt.ToDto());
     }
 
     /// <summary>Downloads the appointment as an .ics file (calendar fallback).</summary>

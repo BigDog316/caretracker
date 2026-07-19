@@ -1,4 +1,5 @@
 using CareTrack.Api.Auth;
+using CareTrack.Api;
 using CareTrack.Application;
 using CareTrack.Domain;
 using Microsoft.AspNetCore.Authorization;
@@ -22,9 +23,10 @@ public sealed class DocumentsController : ControllerBase
 
     [HttpGet]
     [RequireCareProfile(AccessRole.Viewer)]
-    public async Task<IReadOnlyList<Document>> List(
+    public async Task<IReadOnlyList<Dtos.DocumentDto>> List(
         Guid careProfileId, [FromQuery] string? tag, CancellationToken ct)
-        => await _service.ListAsync(_user.RequireUserId(), careProfileId, tag, ct);
+        => (await _service.ListAsync(_user.RequireUserId(), careProfileId, tag, ct))
+            .ToDtos(d => d.ToDto());
 
     /// <summary>Multipart upload. Field "file" plus optional metadata fields.</summary>
     [HttpPost]

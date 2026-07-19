@@ -6,16 +6,8 @@ builder.Services.AddCareTrackPersistence(builder.Configuration);
 builder.Services.AddCareTrackAuth(builder.Configuration);
 
 builder.Services.AddControllers()
-    .AddJsonOptions(o =>
-    {
-        o.JsonSerializerOptions.Converters.Add(
-            new System.Text.Json.Serialization.JsonStringEnumConverter());
-        // Controllers serialize domain entities whose EF navigations can
-        // point back at their parents (Document <-> DocumentTag); render
-        // those as null instead of throwing.
-        o.JsonSerializerOptions.ReferenceHandler =
-            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
-    });
+    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(
+        new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 

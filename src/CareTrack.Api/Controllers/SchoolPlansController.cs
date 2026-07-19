@@ -22,18 +22,20 @@ public sealed class SchoolPlansController : ControllerBase
 
     [HttpGet]
     [RequireCareProfile(AccessRole.Viewer)]
-    public async Task<IReadOnlyList<SchoolPlan>> List(
+    public async Task<IReadOnlyList<Dtos.SchoolPlanDto>> List(
         Guid careProfileId, CancellationToken ct)
-        => await _service.ListAsync(_user.RequireUserId(), careProfileId, ct);
+        => (await _service.ListAsync(_user.RequireUserId(), careProfileId, ct))
+            .ToDtos(p => p.ToDto());
 
     /// <summary>Plans due for review within the window (default 60 days).</summary>
     [HttpGet("upcoming-reviews")]
     [RequireCareProfile(AccessRole.Viewer)]
-    public async Task<IReadOnlyList<SchoolPlan>> UpcomingReviews(
+    public async Task<IReadOnlyList<Dtos.SchoolPlanDto>> UpcomingReviews(
         Guid careProfileId, [FromQuery] int withinDays = 60,
         CancellationToken ct = default)
-        => await _service.ListUpcomingReviewsAsync(
-            _user.RequireUserId(), careProfileId, withinDays, ct);
+        => (await _service.ListUpcomingReviewsAsync(
+            _user.RequireUserId(), careProfileId, withinDays, ct))
+            .ToDtos(p => p.ToDto());
 
     [HttpGet("{planId:guid}")]
     [RequireCareProfile(AccessRole.Viewer)]
@@ -42,7 +44,7 @@ public sealed class SchoolPlansController : ControllerBase
     {
         var plan = await _service.GetAsync(
             _user.RequireUserId(), careProfileId, planId, ct);
-        return plan is null ? NotFound() : Ok(plan);
+        return plan is null ? NotFound() : Ok(plan.ToDto());
     }
 
     [HttpPost]
@@ -53,7 +55,7 @@ public sealed class SchoolPlansController : ControllerBase
         var plan = await _service.AddAsync(
             _user.RequireUserId(), careProfileId, req, ct);
         return Created(
-            $"api/care-profiles/{careProfileId}/school-plans/{plan.Id}", plan);
+            $"api/care-profiles/{careProfileId}/school-plans/{plan.Id}", plan.ToDto());
     }
 
     public sealed record LinkDocumentBody(Guid DocumentId);

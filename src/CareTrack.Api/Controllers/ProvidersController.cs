@@ -1,4 +1,5 @@
 using CareTrack.Api.Auth;
+using CareTrack.Api;
 using CareTrack.Application;
 using CareTrack.Domain;
 using Microsoft.AspNetCore.Authorization;
@@ -22,15 +23,16 @@ public sealed class ProvidersController : ControllerBase
 
     [HttpGet]
     [RequireCareProfile(AccessRole.Viewer)]
-    public async Task<IReadOnlyList<Provider>> List(Guid careProfileId, CancellationToken ct)
-        => await _service.ListAsync(_user.RequireUserId(), careProfileId, ct);
+    public async Task<IReadOnlyList<Dtos.ProviderDto>> List(Guid careProfileId, CancellationToken ct)
+        => (await _service.ListAsync(_user.RequireUserId(), careProfileId, ct))
+            .ToDtos(p => p.ToDto());
 
     [HttpGet("{providerId:guid}")]
     [RequireCareProfile(AccessRole.Viewer)]
     public async Task<IActionResult> Get(Guid careProfileId, Guid providerId, CancellationToken ct)
     {
         var provider = await _service.GetAsync(_user.RequireUserId(), careProfileId, providerId, ct);
-        return provider is null ? NotFound() : Ok(provider);
+        return provider is null ? NotFound() : Ok(provider.ToDto());
     }
 
     [HttpPost]
@@ -40,6 +42,6 @@ public sealed class ProvidersController : ControllerBase
     {
         var provider = await _service.AddAsync(_user.RequireUserId(), careProfileId, req, ct);
         return CreatedAtAction(nameof(Get),
-            new { careProfileId, providerId = provider.Id }, provider);
+            new { careProfileId, providerId = provider.Id }, provider.ToDto());
     }
 }
