@@ -23,9 +23,10 @@ public sealed class AgenciesController : ControllerBase
     /// <summary>Lists agencies, optionally filtered by kind.</summary>
     [HttpGet]
     [RequireCareProfile(AccessRole.Viewer)]
-    public async Task<IReadOnlyList<Agency>> List(
+    public async Task<IReadOnlyList<Dtos.AgencyDto>> List(
         Guid careProfileId, [FromQuery] string? kind, CancellationToken ct)
-        => await _service.ListAsync(_user.RequireUserId(), careProfileId, kind, ct);
+        => (await _service.ListAsync(_user.RequireUserId(), careProfileId, kind, ct))
+            .ToDtos(a => a.ToDto());
 
     [HttpGet("{agencyId:guid}")]
     [RequireCareProfile(AccessRole.Viewer)]
@@ -34,7 +35,7 @@ public sealed class AgenciesController : ControllerBase
     {
         var agency = await _service.GetAsync(
             _user.RequireUserId(), careProfileId, agencyId, ct);
-        return agency is null ? NotFound() : Ok(agency);
+        return agency is null ? NotFound() : Ok(agency.ToDto());
     }
 
     [HttpPost]
@@ -45,7 +46,7 @@ public sealed class AgenciesController : ControllerBase
         var agency = await _service.AddAsync(
             _user.RequireUserId(), careProfileId, req, ct);
         return Created(
-            $"api/care-profiles/{careProfileId}/agencies/{agency.Id}", agency);
+            $"api/care-profiles/{careProfileId}/agencies/{agency.Id}", agency.ToDto());
     }
 
     /// <summary>Suggested kinds for the UI's picker.</summary>

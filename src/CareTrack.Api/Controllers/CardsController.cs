@@ -1,4 +1,5 @@
 using CareTrack.Api.Auth;
+using CareTrack.Api;
 using CareTrack.Application;
 using CareTrack.Domain;
 using Microsoft.AspNetCore.Authorization;
@@ -27,9 +28,10 @@ public sealed class CardsController : ControllerBase
 
     [HttpGet]
     [RequireCareProfile(AccessRole.Viewer)]
-    public async Task<IReadOnlyList<Card>> List(
+    public async Task<IReadOnlyList<Dtos.CardDto>> List(
         Guid careProfileId, [FromQuery] string? section, CancellationToken ct)
-        => await _service.ListAsync(_user.RequireUserId(), careProfileId, section, ct);
+        => (await _service.ListAsync(_user.RequireUserId(), careProfileId, section, ct))
+            .ToDtos(c => c.ToDto());
 
     [HttpPost]
     [RequireCareProfile(AccessRole.Editor)]
