@@ -27,7 +27,7 @@ else
             @foreach (var p in _profiles)
             {
                 <li class="card">
-                    <span class="card-title">@p.DisplayName</span>
+                    <a class="card-title" href="profiles/@p.Id">@p.DisplayName</a>
                     @if (p.DateOfBirth is DateOnly dob)
                     {
                         <span class="card-detail">Born @dob.ToString("MMMM d, yyyy")</span>

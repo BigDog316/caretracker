@@ -115,6 +115,64 @@ public sealed class CareTrackApi
         return (await resp.Content.ReadFromJsonAsync<CareProfileSummary>(Json))!;
     }
 
+    // ---- Profile detail: providers / appointments / notes ----
+
+    public Task<IReadOnlyList<ProviderSummary>> GetProvidersAsync(Guid profileId)
+        => GetAsync<IReadOnlyList<ProviderSummary>>(
+            $"api/care-profiles/{profileId}/providers");
+
+    public async Task AddProviderAsync(
+        Guid profileId, string name, string? organization, string? specialty,
+        string? address, string? phone)
+    {
+        var resp = await SendAuthedAsync(() => new HttpRequestMessage(
+            HttpMethod.Post, $"api/care-profiles/{profileId}/providers")
+        {
+            Content = JsonContent.Create(
+                new { name, organization, specialty, address, phone }, options: Json)
+        });
+        if (!resp.IsSuccessStatusCode)
+            throw new ApiException("Couldn't add the provider.");
+    }
+
+    public Task<IReadOnlyList<AppointmentSummary>> GetAppointmentsAsync(Guid profileId)
+        => GetAsync<IReadOnlyList<AppointmentSummary>>(
+            $"api/care-profiles/{profileId}/appointments");
+
+    public async Task AddAppointmentAsync(
+        Guid profileId, string title, DateTimeOffset startsAt, DateTimeOffset endsAt,
+        Guid? providerId, string? location)
+    {
+        var resp = await SendAuthedAsync(() => new HttpRequestMessage(
+            HttpMethod.Post, $"api/care-profiles/{profileId}/appointments")
+        {
+            Content = JsonContent.Create(
+                new { title, startsAt, endsAt, providerId, location }, options: Json)
+        });
+        if (!resp.IsSuccessStatusCode)
+            throw new ApiException("Couldn't add the appointment.");
+    }
+
+    public Task<IReadOnlyList<NoteSummary>> GetNotesAsync(
+        Guid profileId, string? keyword = null)
+        => GetAsync<IReadOnlyList<NoteSummary>>(
+            $"api/care-profiles/{profileId}/notes"
+            + (string.IsNullOrWhiteSpace(keyword)
+                ? "" : $"?q={Uri.EscapeDataString(keyword)}"));
+
+    public async Task AddNoteAsync(
+        Guid profileId, string body, Guid? appointmentId, Guid? providerId)
+    {
+        var resp = await SendAuthedAsync(() => new HttpRequestMessage(
+            HttpMethod.Post, $"api/care-profiles/{profileId}/notes")
+        {
+            Content = JsonContent.Create(
+                new { body, appointmentId, providerId }, options: Json)
+        });
+        if (!resp.IsSuccessStatusCode)
+            throw new ApiException("Couldn't save the note.");
+    }
+
     // ---- Follow-ups ----
 
     public Task<IReadOnlyList<FollowUpReminder>> GetFollowUpsAsync()

@@ -14,6 +14,19 @@ public sealed record FollowUpReminder(
     Guid AppointmentId, Guid CareProfileId, string Title,
     DateTimeOffset EndsAt, Guid? ProviderId);
 
+public sealed record ProviderSummary(
+    Guid Id, string Name, string? Organization, string? Specialty,
+    string? Address, string? Phone);
+
+public sealed record AppointmentSummary(
+    Guid Id, string Title, string? Location,
+    DateTimeOffset StartsAt, DateTimeOffset EndsAt,
+    Guid? ProviderId, DateTimeOffset? FollowUpCompletedAt);
+
+public sealed record NoteSummary(
+    Guid Id, string Body, Guid? AppointmentId, Guid? ProviderId,
+    DateTimeOffset CreatedAt);
+
 /// <summary>Tokens persisted between sessions by the host platform.</summary>
 public sealed record StoredTokens(
     Guid UserId, string AccessToken, string RefreshToken);

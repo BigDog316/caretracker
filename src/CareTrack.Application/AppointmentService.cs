@@ -42,8 +42,11 @@ public sealed class AppointmentService
         {
             CareProfileId = careProfileId,
             Title = req.Title,
-            StartsAt = req.StartsAt,
-            EndsAt = req.EndsAt,
+            // Normalize to UTC: clients send their local offset, and the
+            // Postgres 'timestamp with time zone' writer only accepts UTC.
+            // Same instant either way.
+            StartsAt = req.StartsAt.ToUniversalTime(),
+            EndsAt = req.EndsAt.ToUniversalTime(),
             ProviderId = req.ProviderId,
             Location = req.Location
         };

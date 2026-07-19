@@ -1,0 +1,309 @@
+@page "/profiles/{ProfileId:guid}"
+@inject CareTrackApi Api
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+
+<PageTitle>@(_name ?? "Care profile") — CareTrack</PageTitle>
+
+@if (!_loaded)
+{
+    <p role="status">Loading profile…</p>
+}
+else
+{
+    <h1>@_name</h1>
+
+    @if (_error is not null)
+    {
+        <p class="error" role="alert">@_error</p>
+    }
+    <p role="status" class="visually-hidden-when-empty">@_status</p>
+
+    <section aria-labelledby="providers-heading">
+        <h2 id="providers-heading">Providers</h2>
+        @if (_providers.Count == 0)
+        {
+            <p>No providers yet.</p>
+        }
+        else
+        {
+            <ul class="card-list">
+                @foreach (var p in _providers)
+                {
+                    <li class="card">
+                        <span class="card-title">@p.Name</span>
+                        @if (p.Specialty is not null)
+                        {
+                            <span class="card-detail">@p.Specialty</span>
+                        }
+                        @if (p.Phone is not null)
+                        {
+                            <span class="card-detail">
+                                <a href="tel:@p.Phone">@p.Phone</a>
+                            </span>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+        <details>
+            <summary>Add a provider</summary>
+            <form @onsubmit="AddProviderAsync" @onsubmit:preventDefault>
+                <div class="field">
+                    <label for="prov-name">Name</label>
+                    <input id="prov-name" type="text" required @bind="_provName" />
+                </div>
+                <div class="field">
+                    <label for="prov-spec">Specialty <span class="hint-inline">(optional)</span></label>
+                    <input id="prov-spec" type="text" @bind="_provSpecialty" />
+                </div>
+                <div class="field">
+                    <label for="prov-phone">Phone <span class="hint-inline">(optional)</span></label>
+                    <input id="prov-phone" type="tel" autocomplete="off" @bind="_provPhone" />
+                </div>
+                <button type="submit" disabled="@_busy">Add provider</button>
+            </form>
+        </details>
+    </section>
+
+    <section aria-labelledby="appts-heading">
+        <h2 id="appts-heading">Appointments</h2>
+        @if (_appointments.Count == 0)
+        {
+            <p>No appointments yet.</p>
+        }
+        else
+        {
+            <ul class="card-list">
+                @foreach (var a in _appointments)
+                {
+                    <li class="card">
+                        <span class="card-title">@a.Title</span>
+                        <span class="card-detail">
+                            @a.StartsAt.LocalDateTime.ToString("MMMM d, yyyy 'at' h:mm tt")
+                            @(a.Location is null ? "" : $" — {a.Location}")
+                        </span>
+                        @if (ProviderName(a.ProviderId) is string pname)
+                        {
+                            <span class="card-detail">With @pname</span>
+                        }
+                    </li>
+                }
+            </ul>
+        }
+        <details>
+            <summary>Add an appointment</summary>
+            <form @onsubmit="AddAppointmentAsync" @onsubmit:preventDefault>
+                <div class="field">
+                    <label for="appt-title">Title</label>
+                    <input id="appt-title" type="text" required @bind="_apptTitle" />
+                </div>
+                <div class="field">
+                    <label for="appt-provider">Provider <span class="hint-inline">(optional)</span></label>
+                    <select id="appt-provider" @bind="_apptProviderId">
+                        <option value="">None</option>
+                        @foreach (var p in _providers)
+                        {
+                            <option value="@p.Id">@p.Name</option>
+                        }
+                    </select>
+                </div>
+                <div class="field">
+                    <label for="appt-location">Location <span class="hint-inline">(optional)</span></label>
+                    <input id="appt-location" type="text" @bind="_apptLocation" />
+                </div>
+                <div class="field">
+                    <label for="appt-start">Starts</label>
+                    <input id="appt-start" type="datetime-local" required @bind="_apptStart" />
+                </div>
+                <div class="field">
+                    <label for="appt-end">Ends</label>
+                    <input id="appt-end" type="datetime-local" required @bind="_apptEnd" />
+                </div>
+                <button type="submit" disabled="@_busy">Add appointment</button>
+            </form>
+        </details>
+    </section>
+
+    <section aria-labelledby="notes-heading">
+        <h2 id="notes-heading">Notes</h2>
+        <form role="search" @onsubmit="SearchNotesAsync" @onsubmit:preventDefault>
+            <div class="field">
+                <label for="note-search">Search notes</label>
+                <input id="note-search" type="search" @bind="_noteQuery" />
+            </div>
+            <button type="submit" disabled="@_busy">Search</button>
+        </form>
+        @if (_notes.Count == 0)
+        {
+            <p>@(string.IsNullOrWhiteSpace(_noteQuery)
+                ? "No notes yet." : "No notes match that search.")</p>
+        }
+        else
+        {
+            <ul class="card-list">
+                @foreach (var n in _notes)
+                {
+                    <li class="card">
+                        <span class="card-detail">
+                            @n.CreatedAt.LocalDateTime.ToString("MMMM d, yyyy")
+                            @(ProviderName(n.ProviderId) is string np ? $" — {np}" : "")
+                        </span>
+                        <span>@n.Body</span>
+                    </li>
+                }
+            </ul>
+        }
+        <details>
+            <summary>Add a note</summary>
+            <form @onsubmit="AddNoteAsync" @onsubmit:preventDefault>
+                <div class="field">
+                    <label for="note-body">Note</label>
+                    <textarea id="note-body" rows="3" required @bind="_noteBody"></textarea>
+                </div>
+                <div class="field">
+                    <label for="note-provider">Provider <span class="hint-inline">(optional)</span></label>
+                    <select id="note-provider" @bind="_noteProviderId">
+                        <option value="">None</option>
+                        @foreach (var p in _providers)
+                        {
+                            <option value="@p.Id">@p.Name</option>
+                        }
+                    </select>
+                </div>
+                <button type="submit" disabled="@_busy">Save note</button>
+            </form>
+        </details>
+    </section>
+}
+
+@code {
+    [Parameter] public Guid ProfileId { get; set; }
+
+    private string? _name;
+    private bool _loaded;
+    private bool _busy;
+    private string? _error;
+    private string _status = "";
+
+    private IReadOnlyList<ProviderSummary> _providers = [];
+    private IReadOnlyList<AppointmentSummary> _appointments = [];
+    private IReadOnlyList<NoteSummary> _notes = [];
+
+    private string _provName = "";
+    private string? _provSpecialty;
+    private string? _provPhone;
+
+    private string _apptTitle = "";
+    private string _apptProviderId = "";
+    private string? _apptLocation;
+    private DateTime _apptStart = DateTime.Now.AddDays(1);
+    private DateTime _apptEnd = DateTime.Now.AddDays(1).AddHours(1);
+
+    private string _noteQuery = "";
+    private string _noteBody = "";
+    private string _noteProviderId = "";
+
+    private string? ProviderName(Guid? id)
+        => id is null ? null : _providers.FirstOrDefault(p => p.Id == id)?.Name;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Api.EnsureInitializedAsync();
+        if (!Api.IsAuthenticated)
+        {
+            Nav.NavigateTo("login");
+            return;
+        }
+        await GuardedAsync(async () =>
+        {
+            var profiles = await Api.GetProfilesAsync();
+            var mine = profiles.FirstOrDefault(p => p.Id == ProfileId);
+            if (mine is null)
+            {
+                Nav.NavigateTo("");
+                return;
+            }
+            _name = mine.DisplayName;
+            await ReloadAsync();
+        });
+        _loaded = true;
+    }
+
+    private async Task ReloadAsync()
+    {
+        _providers = await Api.GetProvidersAsync(ProfileId);
+        _appointments = (await Api.GetAppointmentsAsync(ProfileId))
+            .OrderByDescending(a => a.StartsAt).ToList();
+        _notes = await Api.GetNotesAsync(ProfileId, _noteQuery);
+    }
+
+    private async Task GuardedAsync(Func<Task> action)
+    {
+        _error = null;
+        _busy = true;
+        try
+        {
+            await action();
+        }
+        catch (ApiException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (HttpRequestException)
+        {
+            _error = "Couldn't reach the server. Check your connection and try again.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private Task AddProviderAsync() => GuardedAsync(async () =>
+    {
+        await Api.AddProviderAsync(ProfileId, _provName.Trim(),
+            null, Trimmed(_provSpecialty), null, Trimmed(_provPhone));
+        _status = $"Added provider {_provName.Trim()}.";
+        _provName = ""; _provSpecialty = null; _provPhone = null;
+        await ReloadAsync();
+    });
+
+    private Task AddAppointmentAsync() => GuardedAsync(async () =>
+    {
+        var start = new DateTimeOffset(
+            DateTime.SpecifyKind(_apptStart, DateTimeKind.Local));
+        var end = new DateTimeOffset(
+            DateTime.SpecifyKind(_apptEnd, DateTimeKind.Local));
+        if (end < start)
+            throw new ApiException("The end time can't be before the start time.");
+
+        await Api.AddAppointmentAsync(ProfileId, _apptTitle.Trim(), start, end,
+            ParseGuid(_apptProviderId), Trimmed(_apptLocation));
+        _status = $"Added appointment {_apptTitle.Trim()}.";
+        _apptTitle = ""; _apptProviderId = ""; _apptLocation = null;
+        await ReloadAsync();
+    });
+
+    private Task AddNoteAsync() => GuardedAsync(async () =>
+    {
+        await Api.AddNoteAsync(ProfileId, _noteBody.Trim(),
+            null, ParseGuid(_noteProviderId));
+        _status = "Note saved.";
+        _noteBody = ""; _noteProviderId = "";
+        await ReloadAsync();
+    });
+
+    private Task SearchNotesAsync() => GuardedAsync(async () =>
+    {
+        _notes = await Api.GetNotesAsync(ProfileId, _noteQuery);
+        _status = string.IsNullOrWhiteSpace(_noteQuery)
+            ? "Showing all notes."
+            : $"{_notes.Count} note{(_notes.Count == 1 ? "" : "s")} matching \"{_noteQuery}\".";
+    });
+
+    private static string? Trimmed(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static Guid? ParseGuid(string value)
+        => Guid.TryParse(value, out var g) ? g : null;
+}
