@@ -57,6 +57,11 @@ public sealed class PostgresApiFactory : WebApplicationFactory<Program>, IAsyncL
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("ConnectionStrings:CareTrackDb", TestConnectionString);
+        // The Development host loads the developer's user-secrets; blank out
+        // external-service credentials so tests are hermetic no matter what
+        // is configured on the machine.
+        builder.UseSetting("GoogleCalendar:ClientId", "");
+        builder.UseSetting("GoogleCalendar:ClientSecret", "");
     }
 
     public async Task InitializeAsync()
