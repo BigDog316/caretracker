@@ -1,0 +1,8 @@
+<Router AppAssembly="typeof(MauiProgram).Assembly"
+        AdditionalAssemblies="new[] { typeof(CareTrack.Client.Shared.Api.CareTrackApi).Assembly }">
+    <Found Context="routeData">
+        <RouteView RouteData="routeData"
+                   DefaultLayout="typeof(CareTrack.Client.Shared.Layout.AppLayout)" />
+        <FocusOnNavigate RouteData="routeData" Selector="h1" />
+    </Found>
+</Router>
