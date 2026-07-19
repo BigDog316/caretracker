@@ -1,0 +1,201 @@
+@page "/profiles/{ProfileId:guid}/cards"
+@inject CareTrackApi Api
+@inject Microsoft.AspNetCore.Components.NavigationManager Nav
+
+<PageTitle>Cards — CareTrack</PageTitle>
+
+<p><a href="profiles/@ProfileId">Back to profile</a></p>
+<h1>Cards</h1>
+<p>Photos of the physical cards you reach for at the front desk — insurance,
+   Medicaid, memberships — available even when the wallet isn't.</p>
+
+@if (!_loaded)
+{
+    <p role="status">Loading cards…</p>
+}
+else
+{
+    @if (_error is not null)
+    {
+        <p class="error" role="alert">@_error</p>
+    }
+    <p role="status" class="visually-hidden-when-empty">@_status</p>
+
+    <form role="search" @onsubmit="ReloadAsync" @onsubmit:preventDefault>
+        <div class="field">
+            <label for="section-filter">Section</label>
+            <select id="section-filter" @bind="_sectionFilter">
+                <option value="">All sections</option>
+                @foreach (var s in _sections)
+                {
+                    <option value="@s">@s</option>
+                }
+            </select>
+        </div>
+        <button type="submit" disabled="@_busy">Filter</button>
+    </form>
+
+    @if (_cards.Count == 0)
+    {
+        <p>@(string.IsNullOrWhiteSpace(_sectionFilter)
+            ? "No cards yet." : "No cards in that section.")</p>
+    }
+    else
+    {
+        <ul class="card-list">
+            @foreach (var c in _cards)
+            {
+                <li class="card">
+                    <span class="card-title">@(c.Label ?? c.Section)</span>
+                    <span class="card-detail">@c.Section</span>
+                    @if (c.Description is not null)
+                    {
+                        <span class="card-detail">@c.Description</span>
+                    }
+                    @if (_images.TryGetValue(c.Id, out var src))
+                    {
+                        <img src="@src" alt="@(c.Description ?? c.Label ?? $"{c.Section} card")"
+                             class="card-image" />
+                    }
+                    <div class="button-row">
+                        <button type="button" disabled="@_busy"
+                                @onclick="() => ToggleImageAsync(c)">
+                            @(_images.ContainsKey(c.Id) ? "Hide" : "Show")
+                            @(c.Label ?? c.Section)
+                        </button>
+                        <button type="button" class="danger" disabled="@_busy"
+                                @onclick="() => DeleteAsync(c)">
+                            Delete @(c.Label ?? c.Section)
+                        </button>
+                    </div>
+                </li>
+            }
+        </ul>
+    }
+
+    <section aria-labelledby="add-card-heading">
+        <h2 id="add-card-heading">Add a card</h2>
+        <form @onsubmit="UploadAsync" @onsubmit:preventDefault>
+            <div class="field">
+                <label for="card-file">Card photo</label>
+                <InputFile id="card-file" OnChange="OnFileSelected" accept="image/*" />
+            </div>
+            <div class="field">
+                <label for="card-section">Section</label>
+                <input id="card-section" type="text" required list="section-options"
+                       @bind="_section" />
+                <datalist id="section-options">
+                    @foreach (var s in _sections)
+                    {
+                        <option value="@s" />
+                    }
+                </datalist>
+                <p class="hint">Pick a suggestion or type your own category.</p>
+            </div>
+            <div class="field">
+                <label for="card-label">Label <span class="hint-inline">(optional)</span></label>
+                <input id="card-label" type="text" @bind="_label" />
+            </div>
+            <div class="field">
+                <label for="card-desc">
+                    Description <span class="hint-inline">(optional — read aloud by screen readers)</span>
+                </label>
+                <input id="card-desc" type="text" @bind="_description" />
+            </div>
+            <button type="submit" disabled="@(_busy || _file is null)">
+                @(_busy ? "Adding…" : "Add card")
+            </button>
+        </form>
+    </section>
+}
+
+@code {
+    [Parameter] public Guid ProfileId { get; set; }
+
+    private const long MaxImageBytes = 20 * 1024 * 1024;
+
+    private IReadOnlyList<CardSummary> _cards = [];
+    private IReadOnlyList<string> _sections = [];
+    private readonly Dictionary<Guid, string> _images = new();
+    private bool _loaded;
+    private bool _busy;
+    private string? _error;
+    private string _status = "";
+    private string _sectionFilter = "";
+    private string _section = "";
+    private string? _label;
+    private string? _description;
+    private Microsoft.AspNetCore.Components.Forms.IBrowserFile? _file;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Api.EnsureInitializedAsync();
+        if (!Api.IsAuthenticated)
+        {
+            Nav.NavigateTo("login");
+            return;
+        }
+        await GuardedAsync(async () =>
+        {
+            _sections = await Api.GetCardSectionsAsync(ProfileId);
+            await ReloadCoreAsync();
+        });
+        _loaded = true;
+    }
+
+    private Task ReloadAsync() => GuardedAsync(ReloadCoreAsync);
+
+    private async Task ReloadCoreAsync()
+        => _cards = await Api.GetCardsAsync(
+            ProfileId,
+            string.IsNullOrWhiteSpace(_sectionFilter) ? null : _sectionFilter);
+
+    private void OnFileSelected(
+        Microsoft.AspNetCore.Components.Forms.InputFileChangeEventArgs e)
+        => _file = e.File;
+
+    private Task UploadAsync() => GuardedAsync(async () =>
+    {
+        if (_file is null) return;
+        if (_file.Size > MaxImageBytes)
+            throw new ApiException("Card photos can be at most 20 MB.");
+
+        await using var stream = _file.OpenReadStream(MaxImageBytes);
+        await Api.UploadCardAsync(
+            ProfileId, _file.Name, _file.ContentType, stream,
+            _section.Trim(), Trimmed(_label), Trimmed(_description));
+        _status = $"Added card to {_section.Trim()}.";
+        _file = null; _label = null; _description = null;
+        await ReloadCoreAsync();
+    });
+
+    private Task ToggleImageAsync(CardSummary card) => GuardedAsync(async () =>
+    {
+        if (_images.Remove(card.Id)) return;
+        var img = await Api.GetCardImageAsync(ProfileId, card.Id);
+        _images[card.Id] =
+            $"data:{img.ContentType};base64,{Convert.ToBase64String(img.Content)}";
+    });
+
+    private Task DeleteAsync(CardSummary card) => GuardedAsync(async () =>
+    {
+        await Api.DeleteCardAsync(ProfileId, card.Id);
+        _images.Remove(card.Id);
+        _status = $"Deleted {card.Label ?? card.Section}.";
+        await ReloadCoreAsync();
+    });
+
+    private async Task GuardedAsync(Func<Task> action)
+    {
+        _error = null;
+        _busy = true;
+        try { await action(); }
+        catch (ApiException ex) { _error = ex.Message; }
+        catch (HttpRequestException)
+        { _error = "Couldn't reach the server. Check your connection and try again."; }
+        finally { _busy = false; }
+    }
+
+    private static string? Trimmed(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
