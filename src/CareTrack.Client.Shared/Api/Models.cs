@@ -46,6 +46,10 @@ public sealed record AgencySummary(
     Guid Id, string Name, string Kind, string? ContactName,
     string? Phone, string? Email, string? Address, string? Notes);
 
+public sealed record CardSummary(
+    Guid Id, string Section, string? Label, string ContentType,
+    long SizeBytes, string? Description, DateTimeOffset CreatedAt);
+
 /// <summary>
 /// Saves a downloaded file on the host platform (browser blob download on
 /// the web; file system + share sheet in the MAUI app).

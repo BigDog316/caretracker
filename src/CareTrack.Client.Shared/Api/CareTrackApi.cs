@@ -231,6 +231,64 @@ public sealed class CareTrackApi
             throw new ApiException("Couldn't delete the file.");
     }
 
+    // ---- Cards ----
+
+    public Task<IReadOnlyList<string>> GetCardSectionsAsync(Guid profileId)
+        => GetAsync<IReadOnlyList<string>>(
+            $"api/care-profiles/{profileId}/cards/sections");
+
+    public Task<IReadOnlyList<CardSummary>> GetCardsAsync(
+        Guid profileId, string? section = null)
+        => GetAsync<IReadOnlyList<CardSummary>>(
+            $"api/care-profiles/{profileId}/cards"
+            + (string.IsNullOrWhiteSpace(section)
+                ? "" : $"?section={Uri.EscapeDataString(section)}"));
+
+    public async Task UploadCardAsync(
+        Guid profileId, string fileName, string contentType, Stream image,
+        string section, string? label, string? description)
+    {
+        var resp = await SendAuthedAsync(() =>
+        {
+            var form = new MultipartFormDataContent();
+            var filePart = new StreamContent(image);
+            if (!string.IsNullOrWhiteSpace(contentType))
+                filePart.Headers.ContentType =
+                    new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+            form.Add(filePart, "image", fileName);
+            form.Add(new StringContent(section), "section");
+            if (!string.IsNullOrWhiteSpace(label))
+                form.Add(new StringContent(label), "label");
+            if (!string.IsNullOrWhiteSpace(description))
+                form.Add(new StringContent(description), "description");
+            return new HttpRequestMessage(HttpMethod.Post,
+                $"api/care-profiles/{profileId}/cards")
+            { Content = form };
+        });
+        if (!resp.IsSuccessStatusCode)
+            throw new ApiException("Couldn't add the card.");
+    }
+
+    public async Task<FileDownload> GetCardImageAsync(Guid profileId, Guid cardId)
+    {
+        var resp = await SendAuthedAsync(() => new HttpRequestMessage(
+            HttpMethod.Get, $"api/care-profiles/{profileId}/cards/{cardId}/image"));
+        if (!resp.IsSuccessStatusCode)
+            throw new ApiException("Couldn't load the card image.");
+        return new FileDownload(
+            "card-image",
+            resp.Content.Headers.ContentType?.MediaType ?? "application/octet-stream",
+            await resp.Content.ReadAsByteArrayAsync());
+    }
+
+    public async Task DeleteCardAsync(Guid profileId, Guid cardId)
+    {
+        var resp = await SendAuthedAsync(() => new HttpRequestMessage(
+            HttpMethod.Delete, $"api/care-profiles/{profileId}/cards/{cardId}"));
+        if (!resp.IsSuccessStatusCode)
+            throw new ApiException("Couldn't delete the card.");
+    }
+
     // ---- School plans + agencies ----
 
     public Task<IReadOnlyList<SchoolPlanSummary>> GetSchoolPlansAsync(Guid profileId)

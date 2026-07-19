@@ -14,3 +14,6 @@ TestResults/
 
 # Claude Code session files
 .claude/
+
+# Local dev blob storage (LocalDiskDocumentStore)
+src/CareTrack.Api/App_Data/
