@@ -33,7 +33,12 @@ if (clientOrigins.Length > 0)
         .WithExposedHeaders("Content-Disposition")));
 }
 
+builder.Services.AddExceptionHandler<CareTrack.Api.ApiExceptionHandler>();
+builder.Services.AddProblemDetails();
+
 var app = builder.Build();
+
+app.UseExceptionHandler();
 
 if (clientOrigins.Length > 0)
     app.UseCors();
