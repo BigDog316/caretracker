@@ -28,6 +28,8 @@ public class CareTrackDbContext
     public DbSet<SchoolPlan> SchoolPlans => Set<SchoolPlan>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Push.UserPushSubscription> PushSubscriptions => Set<Push.UserPushSubscription>();
+    public DbSet<Calendar.GoogleCalendarConnection> GoogleCalendarConnections
+        => Set<Calendar.GoogleCalendarConnection>();
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -44,6 +46,13 @@ public class CareTrackDbContext
             e.Property(x => x.Token).IsRequired().HasMaxLength(200);
             e.HasIndex(x => x.Token).IsUnique();
             e.HasIndex(x => x.UserId);
+        });
+
+        b.Entity<Calendar.GoogleCalendarConnection>(e =>
+        {
+            e.HasKey(x => x.Id);
+            e.Property(x => x.RefreshToken).IsRequired().HasMaxLength(500);
+            e.HasIndex(x => x.UserId).IsUnique(); // one Google calendar per user
         });
 
         b.Entity<Push.UserPushSubscription>(e =>
