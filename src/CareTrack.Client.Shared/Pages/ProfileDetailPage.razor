@@ -4,14 +4,17 @@
 
 <PageTitle>@(_name ?? "Care profile") — CareTrack</PageTitle>
 
+@* The h1 renders immediately (not behind the loading gate) so
+   FocusOnNavigate has a target and keyboard/screen-reader focus is not
+   dropped while data loads. *@
+<h1>@(_name ?? "Care profile")</h1>
+
 @if (!_loaded)
 {
     <p role="status">Loading profile…</p>
 }
 else
 {
-    <h1>@_name</h1>
-
     <nav aria-label="Profile sections">
         <ul class="section-links">
             <li><a href="profiles/@ProfileId/documents">Documents</a></li>
